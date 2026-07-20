@@ -1,0 +1,30 @@
+# Build and Gradle files
+.gradle/
+build/
+/*/build/
+/captures
+.externalNativeBuild/
+.cxx/
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+out/
+
+# Built artifacts (APKs, AABs, AARs)
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Local config & OS files
+local.properties
+.DS_Store
+Thumbs.db
+
+# Kotlin specific
+.kotlin/
+*.kotlin_module
