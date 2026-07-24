@@ -11,6 +11,7 @@ import com.example.attendance.ui.login.LoginScreen
 import com.example.attendance.ui.dashboard.DashboardScreen
 import com.example.attendance.ui.attendance.AttendanceScreen
 import com.example.attendance.ui.attendance.SubjectDetailScreen
+import com.example.attendance.ui.attendance.AttendanceTableScreen
 import com.example.attendance.ui.timetable.TimetableScreen
 import com.example.attendance.ui.settings.SettingsScreen
 
@@ -51,12 +52,18 @@ fun MainNavigation() {
             entry<Attendance> {
                 AttendanceScreen(
                     onNavigateToSubjectDetails = { name -> backStack.add(SubjectDetails(name)) },
+                    onNavigateToTable = { backStack.add(AttendanceTable) },
                     onBack = { backStack.removeLastOrNull() }
                 )
             }
             entry<SubjectDetails> { key ->
                 SubjectDetailScreen(
                     subjectName = key.subjectName,
+                    onBack = { backStack.removeLastOrNull() }
+                )
+            }
+            entry<AttendanceTable> {
+                AttendanceTableScreen(
                     onBack = { backStack.removeLastOrNull() }
                 )
             }
@@ -67,6 +74,7 @@ fun MainNavigation() {
             }
             entry<Settings> {
                 SettingsScreen(
+                    onAddAccount = { backStack.add(Login) },
                     onLogout = {
                         // Pop everything and route to Login
                         while (backStack.size > 0) {

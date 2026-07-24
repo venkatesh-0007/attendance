@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.example.attendance.data.local.SecurePreferences
 import com.example.attendance.theme.AttendanceTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,14 +26,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             val prefs = remember { SecurePreferences(applicationContext) }
             var darkModeSetting by remember { mutableStateOf(prefs.darkMode) }
+            var accentColorHex by remember { mutableStateOf(prefs.accentColor) }
 
             DisposableEffect(Unit) {
                 val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                    if (key == "dark_mode") {
-                        darkModeSetting = prefs.darkMode
+                    when (key) {
+                        "dark_mode" -> darkModeSetting = prefs.darkMode
+                        "accent_color_hex" -> accentColorHex = prefs.accentColor
                     }
                 }
-                // Under the hood, EncryptedSharedPreferences uses the name we supplied
                 val sharedPrefs = applicationContext.getSharedPreferences("secure_attendance_prefs", Context.MODE_PRIVATE)
                 sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
                 onDispose {
@@ -46,7 +48,20 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme()
             }
 
-            AttendanceTheme(darkTheme = darkTheme) {
+            val accentColor = remember(accentColorHex) {
+                accentColorHex?.let { hex ->
+                    try {
+                        Color(android.graphics.Color.parseColor(hex))
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }
+
+            AttendanceTheme(
+                darkTheme = darkTheme,
+                accentColor = accentColor
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
