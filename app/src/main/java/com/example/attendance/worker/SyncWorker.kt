@@ -1,6 +1,8 @@
 package com.example.attendance.worker
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -28,10 +30,14 @@ class SyncWorker @AssistedInject constructor(
             return@withContext Result.failure()
         }
 
+        if (!isNetworkAvailable()) {
+            return@withContext Result.retry()
+        }
+
         val result = repository.fetchAttendance(studentId, password)
         if (result.isSuccess) {
             val response = result.getOrNull()
-            response?.overall_attendance?.let { percentage ->
+            response?.overallPercentage?.let { percentage ->
                 val threshold = prefs.notificationThreshold
                 if (percentage < threshold) {
                     NotificationHelper.showLowAttendanceNotification(context, percentage, threshold)
@@ -51,4 +57,14 @@ class SyncWorker @AssistedInject constructor(
             Result.retry()
         }
     }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val activeNetwork = connectivityManager?.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
 }
+
