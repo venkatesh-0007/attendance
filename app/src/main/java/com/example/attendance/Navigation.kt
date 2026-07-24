@@ -14,6 +14,7 @@ import com.example.attendance.ui.attendance.SubjectDetailScreen
 import com.example.attendance.ui.attendance.AttendanceTableScreen
 import com.example.attendance.ui.timetable.TimetableScreen
 import com.example.attendance.ui.settings.SettingsScreen
+import com.example.attendance.ui.calendar.AttendanceCalendarScreen
 
 @Composable
 fun MainNavigation() {
@@ -34,7 +35,6 @@ fun MainNavigation() {
             entry<Login> {
                 LoginScreen(
                     onLoginSuccess = {
-                        // Pop everything and route to Dashboard
                         while (backStack.size > 0) {
                             backStack.removeLastOrNull()
                         }
@@ -46,7 +46,8 @@ fun MainNavigation() {
                 DashboardScreen(
                     onNavigateToAttendance = { backStack.add(Attendance) },
                     onNavigateToTimetable = { backStack.add(Timetable) },
-                    onNavigateToSettings = { backStack.add(Settings) }
+                    onNavigateToSettings = { backStack.add(Settings) },
+                    onNavigateToCalendar = { backStack.add(Calendar) }
                 )
             }
             entry<Attendance> {
@@ -76,12 +77,16 @@ fun MainNavigation() {
                 SettingsScreen(
                     onAddAccount = { backStack.add(Login) },
                     onLogout = {
-                        // Pop everything and route to Login
                         while (backStack.size > 0) {
                             backStack.removeLastOrNull()
                         }
                         backStack.add(Login)
                     },
+                    onBack = { backStack.removeLastOrNull() }
+                )
+            }
+            entry<Calendar> {
+                AttendanceCalendarScreen(
                     onBack = { backStack.removeLastOrNull() }
                 )
             }

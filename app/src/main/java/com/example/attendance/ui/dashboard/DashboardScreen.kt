@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -21,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -72,6 +72,7 @@ fun DashboardScreen(
     onNavigateToAttendance: () -> Unit,
     onNavigateToTimetable: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToCalendar: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -100,6 +101,9 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToCalendar) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = "Calendar & Export")
+                    }
                     IconButton(onClick = { viewModel.refresh() }, enabled = !isRefreshing) {
                         if (isRefreshing) {
                             CircularProgressIndicator(
@@ -233,8 +237,7 @@ fun DashboardScreen(
 
                     // Today's Status Badges Card
                     val todaySummary = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
-                    val summaryPair = currentData.getTodaySummary(todaySummary)
-                    val (pCount, aCount) = summaryPair
+                    val countSummary = currentData.getTodayCountSummary(todaySummary)
 
                     ElevatedCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -253,22 +256,31 @@ fun DashboardScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
 
-                            if (pCount == 0 && aCount == 0) {
+                            if (countSummary.totalClasses == 0) {
                                 Text(
                                     text = "No classes recorded for today",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             } else {
+                                Text(
+                                    text = countSummary.toDisplayString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    repeat(pCount) { index ->
+                                    repeat(countSummary.presents) { index ->
                                         PeriodCircle(periodNumber = index + 1, status = 'P')
                                     }
-                                    repeat(aCount) { index ->
-                                        PeriodCircle(periodNumber = pCount + index + 1, status = 'A')
+                                    repeat(countSummary.absents) { index ->
+                                        PeriodCircle(periodNumber = countSummary.presents + index + 1, status = 'A')
+                                    }
+                                    repeat(countSummary.pending) { index ->
+                                        PeriodCircle(periodNumber = countSummary.presents + countSummary.absents + index + 1, status = '-')
                                     }
                                 }
                             }
@@ -299,13 +311,25 @@ fun DashboardScreen(
                                 onClick = onNavigateToTimetable
                             )
                         }
-                        MenuCard(
-                            title = "Settings",
-                            icon = Icons.Default.Settings,
-                            description = "Preferences, theme, sync interval & thresholds",
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = onNavigateToSettings
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            MenuCard(
+                                title = "Attendance Calendar",
+                                icon = Icons.Default.CalendarMonth,
+                                description = "Monthly history & PDF export",
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToCalendar
+                            )
+                            MenuCard(
+                                title = "Settings",
+                                icon = Icons.Default.Settings,
+                                description = "Preferences & threshold",
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToSettings
+                            )
+                        }
                     }
                 }
             }
@@ -366,9 +390,16 @@ fun InfoItem(label: String, value: String) {
 
 @Composable
 fun PeriodCircle(periodNumber: Int, status: Char) {
-    val isPresent = status.uppercaseChar() == 'P'
-    val containerColor = if (isPresent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
-    val textColor = if (isPresent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+    val containerColor = when (status.uppercaseChar()) {
+        'P' -> MaterialTheme.colorScheme.primaryContainer
+        'A' -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val textColor = when (status.uppercaseChar()) {
+        'P' -> MaterialTheme.colorScheme.onPrimaryContainer
+        'A' -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Box(
         contentAlignment = Alignment.Center,

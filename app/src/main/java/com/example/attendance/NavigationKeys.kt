@@ -10,3 +10,4 @@ import kotlinx.serialization.Serializable
 @Serializable data object AttendanceTable : NavKey
 @Serializable data object Timetable : NavKey
 @Serializable data object Settings : NavKey
+@Serializable data object Calendar : NavKey

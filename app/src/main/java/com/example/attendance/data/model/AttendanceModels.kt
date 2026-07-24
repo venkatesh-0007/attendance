@@ -5,6 +5,25 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Serializable
+data class TodayCountSummary(
+    val presents: Int = 0,
+    val absents: Int = 0,
+    val pending: Int = 0,
+    val totalClasses: Int = 0
+) {
+    fun toDisplayString(): String {
+        if (totalClasses == 0) return "Today: No Classes"
+        val parts = mutableListOf<String>()
+        parts.add("$presents Present")
+        parts.add("$absents Absent")
+        if (pending > 0) {
+            parts.add("($pending Pending)")
+        }
+        return "Today: ${parts.joinToString(", ")}"
+    }
+}
+
+@Serializable
 data class AttendanceResponse(
     val student_name: String? = null,
     val roll_number: String? = null,
@@ -41,11 +60,19 @@ data class AttendanceResponse(
         }
     }
 
-    fun getTodaySummary(todayDateStr: String): Pair<Int, Int> {
+    fun getTodayCountSummary(todayDateStr: String): TodayCountSummary {
         val statusString = getTodayStatusString(todayDateStr)
+        if (statusString.isEmpty()) return TodayCountSummary(0, 0, 0, 0)
+
         val presents = statusString.count { it == 'P' }
         val absents = statusString.count { it == 'A' }
-        return presents to absents
+        val pending = statusString.count { it == '-' }
+        return TodayCountSummary(presents, absents, pending, statusString.length)
+    }
+
+    fun getTodaySummary(todayDateStr: String): Pair<Int, Int> {
+        val countSummary = getTodayCountSummary(todayDateStr)
+        return countSummary.presents to countSummary.absents
     }
 
     fun getTodayStatusString(todayDateStr: String): String {

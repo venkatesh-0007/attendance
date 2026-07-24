@@ -233,15 +233,10 @@ class DashboardWidget : GlanceAppWidget() {
                         Spacer(modifier = GlanceModifier.defaultWeight())
 
                         val todayDate = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
-                        val statusStr = data.getTodayStatusString(todayDate)
-                        val todayText = if (statusStr.isNotBlank()) {
-                            "Today: $statusStr"
-                        } else {
-                            "Today: No Classes"
-                        }
+                        val todayDisplay = data.getTodayCountSummary(todayDate).toDisplayString()
 
                         Text(
-                            text = todayText,
+                            text = todayDisplay,
                             style = TextStyle(
                                 fontSize = 10.sp,
                                 color = GlanceTheme.colors.onSurfaceVariant
