@@ -1,5 +1,7 @@
 package com.example.attendance.ui.dashboard
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,17 +10,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,7 +26,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.attendance.data.local.SecurePreferences
-import com.example.attendance.data.model.AttendanceResponse
 import com.example.attendance.data.repository.AttendanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +50,9 @@ class DashboardViewModel @Inject constructor(
 
     val lastUpdated: Long
         get() = prefs.lastUpdated
+
+    val notificationThreshold: Int
+        get() = prefs.notificationThreshold
 
     fun refresh() {
         val studentId = prefs.studentId ?: return
@@ -81,10 +83,32 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Dashboard", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text(
+                            "Dashboard",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        attendanceState?.student_name?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }, enabled = !isRefreshing) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh Data")
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Data")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -107,19 +131,17 @@ fun DashboardScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Last updated text
                 viewModel.lastUpdated.takeIf { it > 0 }?.let { timestamp ->
                     val format = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
                     Text(
                         text = "Last updated: ${format.format(Date(timestamp))}",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 val currentData = attendanceState
                 if (currentData == null) {
-                    // Loading State / No Data State
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -129,55 +151,96 @@ fun DashboardScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Fetching attendance data...")
+                            Text("Fetching attendance data...", style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 } else {
-                    // Gauge Card
-                    Card(
+                    val overall = currentData.overallPercentage
+                    val threshold = viewModel.notificationThreshold
+                    val isBelow = overall < threshold
+                    val bannerText = if (isBelow) {
+                        "Warning: Your attendance (${String.format(Locale.getDefault(), "%.2f", overall)}%) is below your target threshold ($threshold%)."
+                    } else {
+                        "Good Standing: Your attendance (${String.format(Locale.getDefault(), "%.2f", overall)}%) is above your target threshold ($threshold%)."
+                    }
+                    val bannerColor = if (isBelow) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+                    val bannerTextColor = if (isBelow) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = bannerColor)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = bannerText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = bannerTextColor
+                            )
+                        }
+                    }
+
+                    // Attendance Gauge Card
+                    ElevatedCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        )
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            AttendanceGauge(percentage = currentData.overall_attendance ?: 0.0)
+                            AttendanceGauge(
+                                percentage = currentData.overallPercentage,
+                                threshold = viewModel.notificationThreshold
+                            )
+
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 InfoItem(
-                                    label = "Attended",
-                                    value = "${currentData.attended_classes ?: 0}"
+                                    label = "Attended Classes",
+                                    value = "${currentData.total_info?.total_attended ?: 0}"
                                 )
-                                Divider(
+                                Box(
                                     modifier = Modifier
                                         .height(40.dp)
-                                        .width(1.dp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                        .width(1.dp)
+                                        .background(MaterialTheme.colorScheme.outlineVariant)
                                 )
                                 InfoItem(
-                                    label = "Held",
-                                    value = "${currentData.held_classes ?: 0}"
+                                    label = "Total Held",
+                                    value = "${currentData.total_info?.total_held ?: 0}"
                                 )
                             }
                         }
                     }
 
-                    // Today's Attendance Card
-                    Card(
+                    // Today's Status Badges Card
+                    val todaySummary = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
+                    val summaryPair = currentData.getTodaySummary(todaySummary)
+                    val (pCount, aCount) = summaryPair
+
+                    ElevatedCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )
                     ) {
                         Column(
@@ -185,17 +248,15 @@ fun DashboardScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "Today's Status",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
+                                text = "Today's Attendance Status",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
 
-                            val todayStr = currentData.todays_attendance
-                            if (todayStr.isNullOrBlank() || todayStr.equals("No Classes", true)) {
+                            if (pCount == 0 && aCount == 0) {
                                 Text(
-                                    text = "Today: No Classes",
-                                    fontSize = 14.sp,
+                                    text = "No classes recorded for today",
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             } else {
@@ -203,8 +264,11 @@ fun DashboardScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    todayStr.forEachIndexed { index, char ->
-                                        PeriodCircle(periodNumber = index + 1, status = char)
+                                    repeat(pCount) { index ->
+                                        PeriodCircle(periodNumber = index + 1, status = 'P')
+                                    }
+                                    repeat(aCount) { index ->
+                                        PeriodCircle(periodNumber = pCount + index + 1, status = 'A')
                                     }
                                 }
                             }
@@ -222,15 +286,15 @@ fun DashboardScreen(
                         ) {
                             MenuCard(
                                 title = "Subject Attendance",
-                                icon = Icons.Default.List,
-                                description = "View detailed subject metrics",
+                                icon = Icons.AutoMirrored.Filled.List,
+                                description = "View subject breakdown",
                                 modifier = Modifier.weight(1f),
                                 onClick = onNavigateToAttendance
                             )
                             MenuCard(
                                 title = "Class Schedule",
                                 icon = Icons.Default.DateRange,
-                                description = "View weekly timetable",
+                                description = "Weekly timetable",
                                 modifier = Modifier.weight(1f),
                                 onClick = onNavigateToTimetable
                             )
@@ -238,7 +302,7 @@ fun DashboardScreen(
                         MenuCard(
                             title = "Settings",
                             icon = Icons.Default.Settings,
-                            description = "Change login credentials, dark mode, thresholds",
+                            description = "Preferences, theme, sync interval & thresholds",
                             modifier = Modifier.fillMaxWidth(),
                             onClick = onNavigateToSettings
                         )
@@ -250,28 +314,33 @@ fun DashboardScreen(
 }
 
 @Composable
-fun AttendanceGauge(percentage: Double, modifier: Modifier = Modifier) {
-    val progress = (percentage / 100f).coerceIn(0.0, 1.0).toFloat()
-    val indicatorColor = if (percentage >= 75) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+fun AttendanceGauge(percentage: Double, threshold: Int, modifier: Modifier = Modifier) {
+    val targetProgress = (percentage / 100f).coerceIn(0.0, 1.0).toFloat()
+    val animatedProgress by animateFloatAsState(
+        targetValue = targetProgress,
+        animationSpec = tween(durationMillis = 1000),
+        label = "GaugeAnimation"
+    )
+    val indicatorColor = if (percentage >= threshold) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
 
     Box(contentAlignment = Alignment.Center, modifier = modifier) {
         CircularProgressIndicator(
-            progress = progress,
-            modifier = Modifier.size(150.dp),
-            strokeWidth = 10.dp,
+            progress = { animatedProgress },
+            modifier = Modifier.size(160.dp),
+            strokeWidth = 12.dp,
             color = indicatorColor,
-            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = String.format(Locale.getDefault(), "%.2f%%", percentage),
-                fontSize = 28.sp,
+                style = MaterialTheme.typography.displayLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "Overall Attendance",
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -281,33 +350,35 @@ fun AttendanceGauge(percentage: Double, modifier: Modifier = Modifier) {
 @Composable
 fun InfoItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
 @Composable
 fun PeriodCircle(periodNumber: Int, status: Char) {
-    val color = when (status.uppercaseChar()) {
-        'P' -> MaterialTheme.colorScheme.primaryContainer
-        'A' -> MaterialTheme.colorScheme.errorContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-    val textColor = when (status.uppercaseChar()) {
-        'P' -> MaterialTheme.colorScheme.onPrimaryContainer
-        'A' -> MaterialTheme.colorScheme.onErrorContainer
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val isPresent = status.uppercaseChar() == 'P'
+    val containerColor = if (isPresent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+    val textColor = if (isPresent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
 
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(36.dp)
-            .background(color, CircleShape)
+            .background(containerColor, CircleShape)
     ) {
         Text(
             text = status.toString(),
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = textColor
         )
@@ -322,10 +393,11 @@ fun MenuCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Card(
+    ElevatedCard(
         modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -337,8 +409,16 @@ fun MenuCard(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp)
             )
-            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Text(text = description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
