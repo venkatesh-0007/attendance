@@ -1,0 +1,7 @@
+- `[x]` Update `AttendanceWidget.kt` with Material 3 design and dynamic colors
+- `[x]` Implement the 2x2 layout as requested (Percentage, Ratio, Today's summary)
+- `[x]` Handle loading and offline states in the widget
+- `[x]` Fix `updateAll` companion method to reset the `is_refreshing` state
+- `[x]` Enhance `Today's Summary` logic in `AttendanceModels.kt`
+- `[x]` Update `AttendanceWidget.kt` to use the enhanced summary string
+- `[x]` Verify chronological order and "Pending" status for future classes

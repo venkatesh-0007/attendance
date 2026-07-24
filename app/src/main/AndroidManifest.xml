@@ -34,7 +34,19 @@
                 tools:node="remove" />
         </provider>
 
-        <!-- Home Screen 2x2 Widget Receiver -->
+        <!-- Home Screen 4x2 Dashboard Widget Receiver -->
+        <receiver
+            android:name=".widget.DashboardWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_dashboard_4x2" />
+        </receiver>
+
+        <!-- Home Screen 2x2 Radial Gauge Widget Receiver -->
         <receiver
             android:name=".widget.AttendanceWidgetReceiver"
             android:exported="true">
@@ -44,6 +56,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/attendance_widget_info" />
+        </receiver>
+
+        <!-- Home Screen 2x1 Minimal Badge Widget Receiver -->
+        <receiver
+            android:name=".widget.BadgeWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_badge_2x1" />
         </receiver>
     </application>
 

@@ -44,11 +44,12 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
 
-            // Trigger Jetpack Glance home widget update if possible
+            // Trigger updates across all home screen widgets
             try {
                 com.example.attendance.widget.AttendanceWidget.updateAll(context)
+                com.example.attendance.widget.DashboardWidget.updateAll(context)
+                com.example.attendance.widget.BadgeWidget.updateAll(context)
             } catch (e: Exception) {
-                // Widget class might not be fully loaded yet
                 e.printStackTrace()
             }
 
@@ -67,4 +68,3 @@ class SyncWorker @AssistedInject constructor(
                 capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
     }
 }
-
