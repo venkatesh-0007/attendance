@@ -24,9 +24,11 @@ class SecurePreferences(context: Context) {
         private const val KEY_PASSWORD = "password"
         private const val KEY_REFRESH_INTERVAL = "refresh_interval_minutes"
         private const val KEY_DARK_MODE = "dark_mode"
+        private const val KEY_ACCENT_COLOR = "accent_color_hex"
         private const val KEY_NOTIFICATION_THRESHOLD = "notification_threshold"
         private const val KEY_LAST_UPDATED = "last_updated_timestamp"
-        private const val KEY_ATTENDANCE_CACHE = "attendance_cache"
+        private const val KEY_ATTENDANCE_CACHE_PREFIX = "attendance_cache_"
+        private const val KEY_ACCOUNTS_JSON = "accounts_json"
     }
 
     var studentId: String?
@@ -38,31 +40,46 @@ class SecurePreferences(context: Context) {
         set(value) = prefs.edit().putString(KEY_PASSWORD, value).apply()
 
     var refreshIntervalMinutes: Int
-        get() = prefs.getInt(KEY_REFRESH_INTERVAL, 180) // default to 3 hours (180 mins)
+        get() = prefs.getInt(KEY_REFRESH_INTERVAL, 180)
         set(value) = prefs.edit().putInt(KEY_REFRESH_INTERVAL, value).apply()
 
     var darkMode: String
         get() = prefs.getString(KEY_DARK_MODE, "SYSTEM") ?: "SYSTEM"
         set(value) = prefs.edit().putString(KEY_DARK_MODE, value).apply()
 
+    var accentColor: String?
+        get() = prefs.getString(KEY_ACCENT_COLOR, null)
+        set(value) = prefs.edit().putString(KEY_ACCENT_COLOR, value).apply()
+
     var notificationThreshold: Int
-        get() = prefs.getInt(KEY_NOTIFICATION_THRESHOLD, 75) // default 75%
+        get() = prefs.getInt(KEY_NOTIFICATION_THRESHOLD, 75)
         set(value) = prefs.edit().putInt(KEY_NOTIFICATION_THRESHOLD, value).apply()
 
     var lastUpdated: Long
         get() = prefs.getLong(KEY_LAST_UPDATED, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_UPDATED, value).apply()
 
-    var attendanceCache: String?
-        get() = prefs.getString(KEY_ATTENDANCE_CACHE, null)
-        set(value) = prefs.edit().putString(KEY_ATTENDANCE_CACHE, value).apply()
+    var accountsJson: String?
+        get() = prefs.getString(KEY_ACCOUNTS_JSON, null)
+        set(value) = prefs.edit().putString(KEY_ACCOUNTS_JSON, value).apply()
+
+    fun getAttendanceCache(id: String): String? {
+        return prefs.getString(KEY_ATTENDANCE_CACHE_PREFIX + id, null)
+    }
+
+    fun setAttendanceCache(id: String, json: String) {
+        prefs.edit().putString(KEY_ATTENDANCE_CACHE_PREFIX + id, json).apply()
+    }
 
     fun clearCredentials() {
         prefs.edit()
             .remove(KEY_STUDENT_ID)
             .remove(KEY_PASSWORD)
-            .remove(KEY_ATTENDANCE_CACHE)
             .apply()
+    }
+
+    fun removeAccountData(id: String) {
+        prefs.edit().remove(KEY_ATTENDANCE_CACHE_PREFIX + id).apply()
     }
 
     val hasCredentials: Boolean
