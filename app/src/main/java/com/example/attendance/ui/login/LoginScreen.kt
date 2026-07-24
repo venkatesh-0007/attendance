@@ -1,9 +1,11 @@
 package com.example.attendance.ui.login
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
@@ -14,9 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -86,7 +88,7 @@ fun LoginScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                         MaterialTheme.colorScheme.surface
                     )
                 )
@@ -101,41 +103,57 @@ fun LoginScreen(
         ) {
             Text(
                 text = "Register Portal",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
             )
             Text(
                 text = "Sign in to track your attendance",
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
             )
 
-            Card(
+            ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OutlinedTextField(
                         value = studentId,
                         onValueChange = { studentId = it },
                         label = { Text("Student ID") },
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
 
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
                         trailingIcon = {
                             val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -143,18 +161,28 @@ fun LoginScreen(
                             }
                         },
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { viewModel.login(studentId, password, onLoginSuccess) }
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(16.dp)
                     )
 
-                    AnimatedVisibility(visible = state is LoginUiState.Error) {
+                    AnimatedVisibility(
+                        visible = state is LoginUiState.Error,
+                        enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
+                        exit = fadeOut(animationSpec = tween(200)) + shrinkVertically()
+                    ) {
                         val message = (state as? LoginUiState.Error)?.message ?: ""
                         Text(
                             text = message,
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(horizontal = 4.dp)
                         )
                     }
@@ -163,9 +191,9 @@ fun LoginScreen(
                         onClick = { viewModel.login(studentId, password, onLoginSuccess) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
-                            .padding(top = 4.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .height(52.dp)
+                            .padding(top = 8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         enabled = state !is LoginUiState.Loading
                     ) {
                         if (state is LoginUiState.Loading) {
@@ -175,7 +203,11 @@ fun LoginScreen(
                                 strokeWidth = 2.5.dp
                             )
                         } else {
-                            Text("Login", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Login",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
