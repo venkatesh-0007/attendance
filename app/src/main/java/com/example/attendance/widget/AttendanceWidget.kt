@@ -7,20 +7,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.*
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.CircularProgressIndicator
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.appwidget.appWidgetBackground
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.layout.*
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -29,7 +34,8 @@ import com.example.attendance.data.local.SecurePreferences
 import com.example.attendance.data.model.AttendanceResponse
 import com.example.attendance.worker.SyncWorker
 import kotlinx.serialization.json.Json
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
 
 class AttendanceWidget : GlanceAppWidget() {
 
@@ -37,49 +43,53 @@ class AttendanceWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            val prefsState = currentState<Preferences>()
-            val isRefreshing = prefsState[isRefreshingKey] ?: false
+            val widgetPrefs = currentState<Preferences>()
+            val boundStudentId = widgetPrefs[studentIdKey]
+            val isRefreshing = widgetPrefs[isRefreshingKey] ?: false
 
-            // Load data from secure prefs
             val securePrefs = remember { SecurePreferences(context) }
+            val studentIdToLoad = boundStudentId ?: securePrefs.studentId
+
             val json = remember { Json { ignoreUnknownKeys = true } }
-            val cachedJson = securePrefs.attendanceCache
+            val cachedJson = studentIdToLoad?.let { securePrefs.getAttendanceCache(it) }
 
             val data: AttendanceResponse? = remember(cachedJson) {
-                if (!cachedJson.isNullOrBlank()) {
+                cachedJson?.let {
                     try {
-                        json.decodeFromString<AttendanceResponse>(cachedJson)
+                        json.decodeFromString<AttendanceResponse>(it)
                     } catch (e: Exception) {
                         null
                     }
-                } else {
-                    null
                 }
             }
 
             GlanceTheme {
-                WidgetContent(context, data, isRefreshing)
+                WidgetContent(data, isRefreshing)
             }
         }
     }
 
     @Composable
-    private fun WidgetContent(context: Context, data: AttendanceResponse?, isRefreshing: Boolean) {
+    private fun WidgetContent(
+        data: AttendanceResponse?,
+        isRefreshing: Boolean
+    ) {
         val rootModifier = GlanceModifier
             .fillMaxSize()
-            .padding(12.dp)
-            .background(GlanceTheme.colors.widgetBackground)
+            .appWidgetBackground()
+            .background(GlanceTheme.colors.surface)
+            .cornerRadius(20.dp)
+            .padding(14.dp)
             .clickable(actionStartActivity<MainActivity>())
 
         Column(
             modifier = rootModifier,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Row: Title & Refresh Button
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -93,12 +103,9 @@ class AttendanceWidget : GlanceAppWidget() {
                 )
 
                 if (isRefreshing) {
-                    Text(
-                        text = "Syncing...",
-                        style = TextStyle(
-                            fontSize = 11.sp,
-                            color = GlanceTheme.colors.primary
-                        )
+                    CircularProgressIndicator(
+                        color = GlanceTheme.colors.primary,
+                        modifier = GlanceModifier.size(18.dp)
                     )
                 } else {
                     Text(
@@ -106,74 +113,84 @@ class AttendanceWidget : GlanceAppWidget() {
                         style = TextStyle(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = GlanceTheme.colors.primary
+                            color = GlanceTheme.colors.primary,
+                            textAlign = TextAlign.End
                         ),
                         modifier = GlanceModifier.clickable(actionRunCallback<RefreshCallback>())
                     )
                 }
             }
 
-            Spacer(modifier = GlanceModifier.height(8.dp))
+            Spacer(modifier = GlanceModifier.defaultWeight())
 
             if (data == null) {
                 Box(
-                    modifier = GlanceModifier.defaultWeight(),
+                    modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Tap to login.",
+                        text = if (isRefreshing) "Refreshing..." else "Offline / Tap to login",
                         style = TextStyle(
                             fontSize = 12.sp,
-                            color = GlanceTheme.colors.onSurfaceVariant
+                            color = GlanceTheme.colors.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
                     )
                 }
             } else {
-                val percentage = data.overall_attendance ?: 0.0
-                val formattedPercent = String.format(Locale.getDefault(), "%.2f%%", percentage)
-                val percentColor = if (percentage >= 75.0) GlanceTheme.colors.primary else GlanceTheme.colors.error
+                val percentage = data.overallPercentage
+                val threshold = 75
+                val percentColor = if (percentage >= threshold) GlanceTheme.colors.primary else GlanceTheme.colors.error
 
-                Box(
-                    modifier = GlanceModifier.defaultWeight(),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = formattedPercent,
-                            style = TextStyle(
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = percentColor
-                            )
+                    // Overall Percentage
+                    Text(
+                        text = String.format(Locale.getDefault(), "%.2f%%", percentage),
+                        style = TextStyle(
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = percentColor,
+                            textAlign = TextAlign.Center
                         )
-                        Text(
-                            text = "${data.attended_classes ?: 0} / ${data.held_classes ?: 0}",
-                            style = TextStyle(
-                                fontSize = 12.sp,
-                                color = GlanceTheme.colors.onSurfaceVariant
-                            )
+                    )
+
+                    Spacer(modifier = GlanceModifier.height(2.dp))
+
+                    // Ratio: Attended / Held
+                    Text(
+                        text = "${data.total_info?.total_attended ?: 0} / ${data.total_info?.total_held ?: 0}",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = GlanceTheme.colors.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
-                    }
+                    )
                 }
 
-                Spacer(modifier = GlanceModifier.height(4.dp))
+                Spacer(modifier = GlanceModifier.defaultWeight())
 
-                val todayStr = data.todays_attendance
-                val footerText = if (todayStr.isNullOrBlank() || todayStr.equals("No Classes", true)) {
-                    "Today: No Classes"
+                // Today's attendance status footer (chronological)
+                val todayDate = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
+                val todayStatus = data.getTodayStatusString(todayDate)
+
+                val todayText = if (todayStatus.isNotEmpty()) {
+                    "Today: $todayStatus"
                 } else {
-                    "Today: $todayStr"
+                    "Today: No Classes"
                 }
 
                 Text(
-                    text = footerText,
+                    text = todayText,
                     style = TextStyle(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
                         color = GlanceTheme.colors.onSurfaceVariant
-                    )
+                    ),
+                    modifier = GlanceModifier.fillMaxWidth()
                 )
             }
         }
@@ -181,6 +198,8 @@ class AttendanceWidget : GlanceAppWidget() {
 
     companion object {
         val isRefreshingKey = booleanPreferencesKey("is_refreshing")
+        val studentIdKey = stringPreferencesKey("widget_student_id")
+        val studentIdParamKey = ActionParameters.Key<String>("param_student_id")
 
         suspend fun updateAll(context: Context) {
             val manager = GlanceAppWidgetManager(context)
@@ -208,5 +227,21 @@ class RefreshCallback : ActionCallback {
 
         val request = OneTimeWorkRequestBuilder<SyncWorker>().build()
         WorkManager.getInstance(context).enqueue(request)
+    }
+}
+
+class BindAccountCallback : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters
+    ) {
+        val studentId = parameters[AttendanceWidget.studentIdParamKey] ?: return
+        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
+            prefs.toMutablePreferences().apply {
+                this[AttendanceWidget.studentIdKey] = studentId
+            }
+        }
+        AttendanceWidget().update(context, glanceId)
     }
 }
