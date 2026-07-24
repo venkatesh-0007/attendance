@@ -22,6 +22,7 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.layout.*
+import androidx.glance.GlanceTheme
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -173,12 +174,11 @@ class AttendanceWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.defaultWeight())
 
-                // Today's attendance status footer (chronological)
+                // Today's attendance status footer
                 val todayDate = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
-                val todayStatus = data.getTodayStatusString(todayDate)
-
-                val todayText = if (todayStatus.isNotEmpty()) {
-                    "Today: $todayStatus"
+                val statusStr = data.getTodayStatusString(todayDate)
+                val todayText = if (statusStr.isNotBlank()) {
+                    "Today: $statusStr"
                 } else {
                     "Today: No Classes"
                 }
@@ -227,21 +227,5 @@ class RefreshCallback : ActionCallback {
 
         val request = OneTimeWorkRequestBuilder<SyncWorker>().build()
         WorkManager.getInstance(context).enqueue(request)
-    }
-}
-
-class BindAccountCallback : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters
-    ) {
-        val studentId = parameters[AttendanceWidget.studentIdParamKey] ?: return
-        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
-            prefs.toMutablePreferences().apply {
-                this[AttendanceWidget.studentIdKey] = studentId
-            }
-        }
-        AttendanceWidget().update(context, glanceId)
     }
 }

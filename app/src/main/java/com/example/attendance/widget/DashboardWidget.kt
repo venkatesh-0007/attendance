@@ -21,6 +21,7 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.layout.*
+import androidx.glance.GlanceTheme
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -232,9 +233,9 @@ class DashboardWidget : GlanceAppWidget() {
                         Spacer(modifier = GlanceModifier.defaultWeight())
 
                         val todayDate = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
-                        val (pCount, aCount) = data.getTodaySummary(todayDate)
-                        val todayText = if (pCount > 0 || aCount > 0) {
-                            "Today: ${"P".repeat(pCount)}${"A".repeat(aCount)}"
+                        val statusStr = data.getTodayStatusString(todayDate)
+                        val todayText = if (statusStr.isNotBlank()) {
+                            "Today: $statusStr"
                         } else {
                             "Today: No Classes"
                         }

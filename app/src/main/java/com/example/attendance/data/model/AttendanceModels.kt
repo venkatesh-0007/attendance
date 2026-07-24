@@ -11,7 +11,6 @@ data class AttendanceResponse(
     val total_info: TotalInfo? = null,
     val subjectwise_summary: List<SubjectSummary>? = null,
     val attendance_table: AttendanceTable? = null,
-    // Keep these for backward compatibility or if they are in other parts of the app
     val timetable: List<TimetableDay>? = null,
     val faculty_information: List<FacultyInfo>? = null,
     val error: String? = null
@@ -19,70 +18,92 @@ data class AttendanceResponse(
     val overallPercentage: Double
         get() = total_info?.total_percentage?.replace("%", "")?.toDoubleOrNull() ?: 0.0
 
-    fun getTodaySummary(todayDateStr: String): Pair<Int, Int> {
-        val table = attendance_table ?: return 0 to 0
-        val headers = table.headers ?: return 0 to 0
-        val rows = table.rows ?: return 0 to 0
+    fun getTodayColumnIndex(todayDateStr: String): Int {
+        val table = attendance_table ?: return -1
+        val headers = table.headers ?: return -1
 
-        val columnIndex = headers.indexOfFirst { it.trim() == todayDateStr }
-        if (columnIndex == -1) return 0 to 0
+        val parts = todayDateStr.split("/", "-")
+        val targetDay = parts.getOrNull(0)?.toIntOrNull()
+        val targetMonth = parts.getOrNull(1)?.toIntOrNull()
 
-        var presents = 0
-        var absents = 0
-        rows.forEach { row ->
-            if (columnIndex < row.size) {
-                val status = row[columnIndex].trim().uppercase()
-                presents += status.count { it == 'P' }
-                absents += status.count { it == 'A' }
-            }
+        return headers.indexOfFirst { header ->
+            val clean = header.trim()
+            if (clean == todayDateStr || clean.startsWith(todayDateStr) || clean.replace("-", "/").contains(todayDateStr)) {
+                true
+            } else if (targetDay != null && targetMonth != null) {
+                val hParts = clean.split("/", "-")
+                if (hParts.size >= 2) {
+                    val hDay = hParts[0].toIntOrNull()
+                    val hMonth = hParts[1].toIntOrNull()
+                    hDay == targetDay && hMonth == targetMonth
+                } else false
+            } else false
         }
+    }
+
+    fun getTodaySummary(todayDateStr: String): Pair<Int, Int> {
+        val statusString = getTodayStatusString(todayDateStr)
+        val presents = statusString.count { it == 'P' }
+        val absents = statusString.count { it == 'A' }
         return presents to absents
     }
 
     fun getTodayStatusString(todayDateStr: String): String {
         val table = attendance_table ?: return ""
-        val headers = table.headers ?: return ""
         val rows = table.rows ?: return ""
-
-        val columnIndex = headers.indexOfFirst { it.trim() == todayDateStr }
+        val columnIndex = getTodayColumnIndex(todayDateStr)
         if (columnIndex == -1) return ""
 
         val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
-        val dayTimetable = timetable?.firstOrNull { it.day.equals(dayName, ignoreCase = true) } ?: return ""
-        val classes = dayTimetable.classes.sortedBy { getStartMinutes(it.time) }
-
-        val subjectOccurrenceCount = mutableMapOf<String, Int>()
-        val result = StringBuilder()
+        val dayTimetable = timetable?.firstOrNull { it.day.equals(dayName, ignoreCase = true) }
 
         val calendar = Calendar.getInstance()
         val nowMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
 
-        classes.forEach { timetableClass ->
-            val subjectName = timetableClass.subject
-            val row = rows.firstOrNull { it.size > 1 && it[1].contains(subjectName, ignoreCase = true) }
+        if (dayTimetable != null && dayTimetable.classes.isNotEmpty()) {
+            val classes = dayTimetable.classes.sortedBy { getStartMinutes(it.time) }
+            val subjectOccurrenceCount = mutableMapOf<String, Int>()
+            val result = StringBuilder()
 
-            val statusChar = if (row != null && columnIndex < row.size) {
-                val fullStatus = row[columnIndex].trim().uppercase()
-                val occurrence = subjectOccurrenceCount.getOrDefault(subjectName, 0)
-                subjectOccurrenceCount[subjectName] = occurrence + 1
+            classes.forEach { timetableClass ->
+                val subjectName = timetableClass.subject
+                val row = rows.firstOrNull { it.size > 1 && it[1].contains(subjectName, ignoreCase = true) }
 
-                if (occurrence < fullStatus.length) {
-                    val char = fullStatus[occurrence]
-                    if (char == 'A' && isFutureClass(timetableClass.time, nowMinutes)) {
-                        '-'
+                val statusChar = if (row != null && columnIndex < row.size) {
+                    val fullStatus = row[columnIndex].trim().uppercase()
+                    val occurrence = subjectOccurrenceCount.getOrDefault(subjectName, 0)
+                    subjectOccurrenceCount[subjectName] = occurrence + 1
+
+                    if (occurrence < fullStatus.length) {
+                        val char = fullStatus[occurrence]
+                        if (char == 'A' && isFutureClass(timetableClass.time, nowMinutes)) {
+                            '-'
+                        } else {
+                            char
+                        }
                     } else {
-                        char
+                        if (isFutureClass(timetableClass.time, nowMinutes)) '-' else '-'
                     }
                 } else {
-                    if (isFutureClass(timetableClass.time, nowMinutes)) '-' else '?'
+                    if (isFutureClass(timetableClass.time, nowMinutes)) '-' else '-'
                 }
-            } else {
-                if (isFutureClass(timetableClass.time, nowMinutes)) '-' else '?'
+                result.append(statusChar)
             }
-            result.append(statusChar)
+            return result.toString()
+        } else {
+            val result = StringBuilder()
+            rows.forEach { row ->
+                if (columnIndex < row.size) {
+                    val fullStatus = row[columnIndex].trim().uppercase()
+                    fullStatus.forEach { char ->
+                        if (char == 'P' || char == 'A') {
+                            result.append(char)
+                        }
+                    }
+                }
+            }
+            return result.toString()
         }
-
-        return result.toString()
     }
 
     private fun getStartMinutes(timeString: String): Int {
@@ -100,7 +121,6 @@ data class AttendanceResponse(
     }
 
     private fun isFutureClass(timeString: String, nowMinutes: Int): Boolean {
-        // Adding a small buffer (e.g. 5 mins) to consider a class "started"
         return getStartMinutes(timeString) > (nowMinutes + 5)
     }
 }
