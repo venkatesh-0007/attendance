@@ -3,12 +3,14 @@ package com.example.attendance.data.repository
 import com.example.attendance.data.api.AttendanceApi
 import com.example.attendance.data.local.SecurePreferences
 import com.example.attendance.data.model.AttendanceResponse
+import com.example.attendance.data.model.UserAccount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
 
 class AttendanceRepository(
     private val api: AttendanceApi,
@@ -23,7 +25,8 @@ class AttendanceRepository(
     }
 
     private fun loadCachedData() {
-        val cachedJson = prefs.attendanceCache
+        val studentId = prefs.studentId ?: return
+        val cachedJson = prefs.getAttendanceCache(studentId)
         if (!cachedJson.isNullOrBlank()) {
             try {
                 _attendance.value = json.decodeFromString<AttendanceResponse>(cachedJson)
@@ -33,23 +36,73 @@ class AttendanceRepository(
         }
     }
 
-    suspend fun getCachedAttendance(): AttendanceResponse? {
-        return _attendance.value
+    fun getSavedAccounts(): List<UserAccount> {
+        val jsonStr = prefs.accountsJson ?: return emptyList()
+        return try {
+            json.decodeFromString(ListSerializer(UserAccount.serializer()), jsonStr)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun saveAccounts(accounts: List<UserAccount>) {
+        val jsonStr = json.encodeToString(ListSerializer(UserAccount.serializer()), accounts)
+        prefs.accountsJson = jsonStr
+    }
+
+    fun switchAccount(studentId: String) {
+        val accounts = getSavedAccounts()
+        val account = accounts.find { it.studentId == studentId } ?: return
+        
+        prefs.studentId = account.studentId
+        prefs.password = account.password
+        _attendance.value = null // Clear current state to force reload from new cache
+        loadCachedData()
+    }
+
+    fun removeAccount(studentId: String) {
+        val accounts = getSavedAccounts().toMutableList()
+        accounts.removeAll { it.studentId == studentId }
+        saveAccounts(accounts)
+        prefs.removeAccountData(studentId)
+        
+        if (prefs.studentId == studentId) {
+            logout()
+        }
     }
 
     suspend fun fetchAttendance(studentId: String, password: String): Result<AttendanceResponse> =
         withContext(Dispatchers.IO) {
             try {
-                val response = api.getAttendance(studentId, password)
+                val rawResponse = api.getAttendance(studentId, password)
+                
+                val actualJson = try {
+                    json.decodeFromString<String>(rawResponse)
+                } catch (_: Exception) {
+                    rawResponse
+                }
+
+                val response = json.decodeFromString<AttendanceResponse>(actualJson)
+
                 if (response.error != null) {
                     Result.failure(Exception(response.error))
-                } else if (response.overall_attendance == null && response.subject_wise_attendance == null) {
-                    // Check if error response is inside other fields or if the response is empty
+                } else if (response.total_info == null && response.subjectwise_summary == null) {
                     Result.failure(Exception("Invalid API response format"))
                 } else {
+                    // Update saved accounts list
+                    val accounts = getSavedAccounts().toMutableList()
+                    val existingIdx = accounts.indexOfFirst { it.studentId == studentId }
+                    val newAccount = UserAccount(studentId, password, response.student_name)
+                    if (existingIdx != -1) {
+                        accounts[existingIdx] = newAccount
+                    } else {
+                        accounts.add(newAccount)
+                    }
+                    saveAccounts(accounts)
+
                     // Save to secure preferences
                     val jsonStr = json.encodeToString(AttendanceResponse.serializer(), response)
-                    prefs.attendanceCache = jsonStr
+                    prefs.setAttendanceCache(studentId, jsonStr)
                     prefs.studentId = studentId
                     prefs.password = password
                     prefs.lastUpdated = System.currentTimeMillis()
@@ -63,6 +116,12 @@ class AttendanceRepository(
 
     fun logout() {
         prefs.clearCredentials()
+        _attendance.value = null
+    }
+
+    fun clearCache() {
+        val studentId = prefs.studentId ?: return
+        prefs.removeAccountData(studentId)
         _attendance.value = null
     }
 }
