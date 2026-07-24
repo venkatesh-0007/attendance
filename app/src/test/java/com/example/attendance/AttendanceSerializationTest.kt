@@ -17,88 +17,52 @@ class AttendanceSerializationTest {
     fun testAttendanceResponseDeserialization() {
         val payload = """
             {
-                "overall_attendance": 80.92,
-                "attended_classes": 123,
-                "held_classes": 152,
-                "todays_attendance": "PPPPPPP",
-                "subject_wise_attendance": [
+                "roll_number": ":24L31A4461",
+                "total_info": {
+                    "total_attended": 137,
+                    "total_held": 179,
+                    "total_percentage": "76.54%",
+                    "hours_can_skip": 3,
+                    "additional_hours_needed": 0
+                },
+                "subjectwise_summary": [
                     {
-                        "subject": "Mathematics IV",
-                        "code": "MATH301",
-                        "percentage": 85.2,
-                        "attended": 30,
-                        "held": 35
+                        "subject_name": "CNA \u0026 P",
+                        "attended": 12,
+                        "held": 16,
+                        "percentage": "75.0%",
+                        "hours_can_skip": 0,
+                        "hours_needed": 0
                     }
                 ],
-                "timetable": [
-                    {
-                        "day": "Monday",
-                        "classes": [
-                          {
-                            "subject": "Mathematics IV",
-                            "time": "09:00 AM - 10:00 AM",
-                            "room": "L-201",
-                            "faculty": "Dr. Sarah Connor"
-                          }
-                        ]
-                    }
-                ],
-                "faculty_information": [
-                    {
-                        "name": "Dr. Sarah Connor",
-                        "subject": "Mathematics IV",
-                        "email": "sarah.connor@university.edu",
-                        "phone": "+1-555-0199"
-                      }
-                ],
-                "attendance_history": [
-                    {
-                        "subject": "Mathematics IV",
-                        "date": "2026-07-15",
-                        "status": "Present"
-                    }
-                ]
+                "attendance_table": {
+                    "headers": ["Sl.No", "Subject"],
+                    "rows": [["1", "CNA \u0026 P"]]
+                }
             }
         """.trimIndent()
 
         val response = json.decodeFromString<AttendanceResponse>(payload)
 
         assertNotNull(response)
-        assertEquals(80.92, response.overall_attendance!!, 0.001)
-        assertEquals(123, response.attended_classes)
-        assertEquals(152, response.held_classes)
-        assertEquals("PPPPPPP", response.todays_attendance)
+        assertEquals(":24L31A4461", response.roll_number)
+        assertNotNull(response.total_info)
+        assertEquals(137, response.total_info?.total_attended)
+        assertEquals(179, response.total_info?.total_held)
+        assertEquals("76.54%", response.total_info?.total_percentage)
+        assertEquals(76.54, response.overallPercentage, 0.001)
         
         // Subject verification
-        assertEquals(1, response.subject_wise_attendance?.size)
-        val subject = response.subject_wise_attendance!![0]
-        assertEquals("Mathematics IV", subject.subject)
-        assertEquals("MATH301", subject.code)
-        assertEquals(85.2, subject.percentage, 0.001)
+        assertEquals(1, response.subjectwise_summary?.size)
+        val subject = response.subjectwise_summary!![0]
+        assertEquals("CNA \u0026 P", subject.subject_name)
+        assertEquals("75.0%", subject.percentage)
+        assertEquals(75.0, subject.percentageDouble, 0.001)
         
-        // Timetable verification
-        assertEquals(1, response.timetable?.size)
-        val timetableDay = response.timetable!![0]
-        assertEquals("Monday", timetableDay.day)
-        assertEquals(1, timetableDay.classes?.size)
-        val timetableClass = timetableDay.classes!![0]
-        assertEquals("Mathematics IV", timetableClass.subject)
-        assertEquals("09:00 AM - 10:00 AM", timetableClass.time)
-        assertEquals("L-201", timetableClass.room)
-        assertEquals("Dr. Sarah Connor", timetableClass.faculty)
-
-        // Faculty verification
-        assertEquals(1, response.faculty_information?.size)
-        val faculty = response.faculty_information!![0]
-        assertEquals("Dr. Sarah Connor", faculty.name)
-        assertEquals("sarah.connor@university.edu", faculty.email)
-
-        // History verification
-        assertEquals(1, response.attendance_history?.size)
-        val history = response.attendance_history!![0]
-        assertEquals("Mathematics IV", history.subject)
-        assertEquals("2026-07-15", history.date)
-        assertEquals("Present", history.status)
+        // Table verification
+        assertNotNull(response.attendance_table)
+        assertEquals(2, response.attendance_table?.headers?.size)
+        assertEquals(1, response.attendance_table?.rows?.size)
     }
 
     @Test
@@ -112,5 +76,40 @@ class AttendanceSerializationTest {
         val response = json.decodeFromString<AttendanceResponse>(errorPayload)
         assertNotNull(response)
         assertEquals("Attendance table not found", response.error)
+    }
+
+    @Test
+    fun testAttendancePercentageParsing() {
+        val payload = """
+            {
+                "total_info": {
+                    "total_attended": 10,
+                    "total_held": 20,
+                    "total_percentage": "50.00%"
+                }
+            }
+        """.trimIndent()
+        val response = json.decodeFromString<AttendanceResponse>(payload)
+        assertEquals(50.0, response.overallPercentage, 0.001)
+    }
+
+    @Test
+    fun testTodaySummaryCalculation() {
+        val payload = """
+            {
+                "attendance_table": {
+                    "headers": ["Sl.No", "Subject", "23/07"],
+                    "rows": [
+                        ["1", "Math", "P"],
+                        ["2", "Physics", "A"],
+                        ["3", "Chemistry", "PP"]
+                    ]
+                }
+            }
+        """.trimIndent()
+        val response = json.decodeFromString<AttendanceResponse>(payload)
+        val summary = response.getTodaySummary("23/07")
+        assertEquals(3, summary.first) // 1 in Math + 2 in Chemistry
+        assertEquals(1, summary.second) // 1 in Physics
     }
 }
