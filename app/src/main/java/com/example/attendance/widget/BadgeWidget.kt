@@ -3,12 +3,15 @@ package com.example.attendance.widget
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.glance.*
+import androidx.glance.action.Action
 import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.CircularProgressIndicator
@@ -21,19 +24,23 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.layout.*
+import androidx.glance.GlanceTheme
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.attendance.MainActivity
 import com.example.attendance.data.local.SecurePreferences
 import com.example.attendance.data.model.AttendanceResponse
+import com.example.attendance.data.model.AttendanceWidgetState
+import com.example.attendance.data.model.OverallAttendanceStatus
 import com.example.attendance.worker.SyncWorker
 import kotlinx.serialization.json.Json
-import java.util.*
+import java.util.Locale
 
 class BadgeWidget : GlanceAppWidget() {
 
@@ -49,7 +56,7 @@ class BadgeWidget : GlanceAppWidget() {
             val json = remember { Json { ignoreUnknownKeys = true } }
             val cachedJson = studentIdToLoad?.let { securePrefs.getAttendanceCache(it) }
 
-            val data: AttendanceResponse? = remember(cachedJson) {
+            val response: AttendanceResponse? = remember(cachedJson) {
                 cachedJson?.let {
                     try {
                         json.decodeFromString<AttendanceResponse>(it)
@@ -59,15 +66,19 @@ class BadgeWidget : GlanceAppWidget() {
                 }
             }
 
+            val widgetState: AttendanceWidgetState? = remember(response, securePrefs.lastUpdated) {
+                response?.toWidgetState(securePrefs.lastUpdated)
+            }
+
             GlanceTheme {
-                BadgeContent(data, isRefreshing)
+                BadgeContent(widgetState, isRefreshing)
             }
         }
     }
 
     @Composable
     private fun BadgeContent(
-        data: AttendanceResponse?,
+        state: AttendanceWidgetState?,
         isRefreshing: Boolean
     ) {
         val rootModifier = GlanceModifier
@@ -82,37 +93,39 @@ class BadgeWidget : GlanceAppWidget() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (data == null) {
+            if (state == null) {
                 Text(
                     text = if (isRefreshing) "Refreshing..." else "Tap to login",
                     style = TextStyle(
                         fontSize = 12.sp,
                         color = GlanceTheme.colors.onSurfaceVariant
                     ),
-                    modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>())
+                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
                 )
             } else {
-                val percentage = data.overallPercentage
-                val isSafe = percentage >= 75.0
-                val percentColor = if (isSafe) GlanceTheme.colors.primary else GlanceTheme.colors.error
+                val statusColor = when (state.attendanceStatus) {
+                    OverallAttendanceStatus.SAFE -> Color(0xFF2E7D32)
+                    OverallAttendanceStatus.WARNING -> Color(0xFFEF6C00)
+                    OverallAttendanceStatus.CRITICAL -> Color(0xFFC62828)
+                }
 
                 Row(
-                    modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>()),
+                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD")),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = String.format(Locale.getDefault(), "%.1f%%", percentage),
+                        text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
                         style = TextStyle(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = percentColor
+                            color = ColorProvider(statusColor)
                         )
                     )
 
                     Spacer(modifier = GlanceModifier.width(6.dp))
 
                     Text(
-                        text = "(${data.total_info?.total_attended ?: 0}/${data.total_info?.total_held ?: 0})",
+                        text = "(${state.attendedClasses}/${state.heldClasses})",
                         style = TextStyle(
                             fontSize = 11.sp,
                             color = GlanceTheme.colors.onSurfaceVariant
@@ -143,8 +156,15 @@ class BadgeWidget : GlanceAppWidget() {
         }
     }
 
+    private fun createTargetAction(targetScreen: String): Action {
+        return actionStartActivity<MainActivity>(
+            actionParametersOf(targetScreenKey to targetScreen)
+        )
+    }
+
     companion object {
         val isRefreshingKey = booleanPreferencesKey("badge_is_refreshing")
+        val targetScreenKey = ActionParameters.Key<String>("target_screen")
 
         suspend fun updateAll(context: Context) {
             val manager = GlanceAppWidgetManager(context)
