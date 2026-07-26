@@ -62,10 +62,11 @@ object HiltModules {
     @Provides
     @Singleton
     fun provideAttendanceRepository(
+        @ApplicationContext context: Context,
         api: AttendanceApi,
         prefs: SecurePreferences,
         json: Json
     ): AttendanceRepository {
-        return AttendanceRepository(api, prefs, json)
+        return AttendanceRepository(api, prefs, json, context)
     }
 }

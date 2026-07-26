@@ -4,10 +4,12 @@ import com.example.attendance.data.api.AttendanceApi
 import com.example.attendance.data.local.SecurePreferences
 import com.example.attendance.data.model.AttendanceResponse
 import com.example.attendance.data.model.UserAccount
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.builtins.ListSerializer
@@ -15,7 +17,8 @@ import kotlinx.serialization.builtins.ListSerializer
 class AttendanceRepository(
     private val api: AttendanceApi,
     private val prefs: SecurePreferences,
-    private val json: Json
+    private val json: Json,
+    private val context: android.content.Context? = null
 ) {
     private val _attendance = MutableStateFlow<AttendanceResponse?>(null)
     val attendance: StateFlow<AttendanceResponse?> = _attendance.asStateFlow()
@@ -58,6 +61,11 @@ class AttendanceRepository(
         prefs.password = account.password
         _attendance.value = null // Clear current state to force reload from new cache
         loadCachedData()
+        context?.let { ctx ->
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                com.example.attendance.widget.WidgetUpdater.updateAll(ctx)
+            }
+        }
     }
 
     fun removeAccount(studentId: String) {
@@ -107,6 +115,11 @@ class AttendanceRepository(
                     prefs.password = password
                     prefs.lastUpdated = System.currentTimeMillis()
                     _attendance.value = response
+
+                    context?.let { ctx ->
+                        com.example.attendance.widget.WidgetUpdater.updateAll(ctx)
+                    }
+
                     Result.success(response)
                 }
             } catch (e: Exception) {
