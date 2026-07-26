@@ -48,6 +48,8 @@
         <!-- Home Screen 4x2 Dashboard Widget Receiver -->
         <receiver
             android:name=".widget.DashboardWidgetReceiver"
+            android:label="@string/widget_label_dashboard"
+            android:description="@string/widget_desc_dashboard"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -57,9 +59,11 @@
                 android:resource="@xml/widget_info_dashboard_4x2" />
         </receiver>
 
-        <!-- Home Screen 2x2 Radial Gauge Widget Receiver -->
+        <!-- Home Screen 2x2 Attendance Overview Widget Receiver -->
         <receiver
             android:name=".widget.AttendanceWidgetReceiver"
+            android:label="@string/widget_label_attendance"
+            android:description="@string/widget_desc_attendance"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -72,6 +76,8 @@
         <!-- Home Screen 2x1 Minimal Badge Widget Receiver -->
         <receiver
             android:name=".widget.BadgeWidgetReceiver"
+            android:label="@string/widget_label_badge"
+            android:description="@string/widget_desc_badge"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

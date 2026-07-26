@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">Attendance</string>
+
+    <!-- Home Screen Widget Strings -->
+    <string name="widget_label_dashboard">Attendance Dashboard (4x2)</string>
+    <string name="widget_desc_dashboard">Glanceable Samsung/Google style 4x2 widget displaying attendance percentage, SAFE/WARNING/CRITICAL status, Can Skip/Need To Attend card, and today period timeline.</string>
+
+    <string name="widget_label_attendance">Attendance Overview (2x2)</string>
+    <string name="widget_desc_attendance">Compact 2x2 widget showing attendance percentage, status badge, skip card, and period chips.</string>
+
+    <string name="widget_label_badge">Attendance Badge (2x1)</string>
+    <string name="widget_desc_badge">Minimal 2x1 badge displaying overall attendance percentage and attended class count.</string>
 </resources>
