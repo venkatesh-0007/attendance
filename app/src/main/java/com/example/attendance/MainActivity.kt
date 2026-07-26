@@ -58,6 +58,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            val targetScreen = intent?.getStringExtra("target_screen")
+
             AttendanceTheme(
                 darkTheme = darkTheme,
                 accentColor = accentColor
@@ -66,7 +68,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainNavigation()
+                    MainNavigation(initialTarget = targetScreen)
                 }
             }
         }

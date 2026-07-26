@@ -1,6 +1,7 @@
 package com.example.attendance
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.entryProvider
@@ -17,12 +18,36 @@ import com.example.attendance.ui.settings.SettingsScreen
 import com.example.attendance.ui.calendar.AttendanceCalendarScreen
 
 @Composable
-fun MainNavigation() {
+fun MainNavigation(initialTarget: String? = null) {
     val context = LocalContext.current
     val prefs = remember { SecurePreferences(context) }
-    val startDestination = if (prefs.hasCredentials) Dashboard else Login
+    val isLoggedIn = prefs.hasCredentials
+
+    val startDestination = if (isLoggedIn) Dashboard else Login
 
     val backStack = rememberNavBackStack(startDestination)
+
+    LaunchedEffect(initialTarget, isLoggedIn) {
+        if (isLoggedIn && initialTarget != null) {
+            when (initialTarget) {
+                "TODAYS_REGISTER" -> {
+                    if (!backStack.contains(AttendanceTable)) {
+                        backStack.add(AttendanceTable)
+                    }
+                }
+                "PREDICTION" -> {
+                    if (!backStack.contains(Attendance)) {
+                        backStack.add(Attendance)
+                    }
+                }
+                "DASHBOARD" -> {
+                    while (backStack.size > 1) {
+                        backStack.removeLastOrNull()
+                    }
+                }
+            }
+        }
+    }
 
     NavDisplay(
         backStack = backStack,
@@ -47,7 +72,8 @@ fun MainNavigation() {
                     onNavigateToAttendance = { backStack.add(Attendance) },
                     onNavigateToTimetable = { backStack.add(Timetable) },
                     onNavigateToSettings = { backStack.add(Settings) },
-                    onNavigateToCalendar = { backStack.add(Calendar) }
+                    onNavigateToCalendar = { backStack.add(Calendar) },
+                    onNavigateToTable = { backStack.add(AttendanceTable) }
                 )
             }
             entry<Attendance> {
