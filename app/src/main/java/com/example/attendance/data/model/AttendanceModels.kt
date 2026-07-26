@@ -150,7 +150,105 @@ data class AttendanceResponse(
     private fun isFutureClass(timeString: String, nowMinutes: Int): Boolean {
         return getStartMinutes(timeString) > (nowMinutes + 5)
     }
+
+    fun getTodayAttendanceTimeline(todayDateStr: String): List<AttendanceStatus> {
+        val statusString = getTodayStatusString(todayDateStr)
+        if (statusString.isEmpty()) return emptyList()
+
+        return statusString.map { char ->
+            when (char.uppercaseChar()) {
+                'P' -> AttendanceStatus.PRESENT
+                'A' -> AttendanceStatus.ABSENT
+                'H' -> AttendanceStatus.HOLIDAY
+                'L' -> AttendanceStatus.LEAVE
+                else -> AttendanceStatus.UPCOMING
+            }
+        }
+    }
+
+    fun toWidgetState(lastUpdatedMillis: Long = System.currentTimeMillis()): AttendanceWidgetState {
+        val percentage = overallPercentage
+        val status = when {
+            percentage >= 85.0 -> OverallAttendanceStatus.SAFE
+            percentage >= 75.0 -> OverallAttendanceStatus.WARNING
+            else -> OverallAttendanceStatus.CRITICAL
+        }
+
+        val attended = total_info?.total_attended ?: 0
+        val held = total_info?.total_held ?: 0
+
+        val calculatedCanSkip = if (held > 0 && percentage >= 75.0) {
+            val maxSkip = kotlin.math.floor((attended - 0.75 * held) / 0.75).toInt()
+            maxOf(0, maxSkip)
+        } else 0
+        val periodsCanSkip = total_info?.hours_can_skip ?: calculatedCanSkip
+
+        val calculatedNeedToAttend = if (held > 0 && percentage < 75.0) {
+            val minAttend = kotlin.math.ceil((0.75 * held - attended) / 0.25).toInt()
+            maxOf(0, minAttend)
+        } else 0
+        val periodsNeedToAttend = total_info?.additional_hours_needed ?: calculatedNeedToAttend
+
+        val todayDate = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
+        val timeline = getTodayAttendanceTimeline(todayDate)
+
+        val lastUpdatedStr = if (lastUpdatedMillis > 0) {
+            SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(lastUpdatedMillis))
+        } else {
+            SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+        }
+
+        val diff = percentage - 75.0
+        val targetMargin = if (diff >= 0) {
+            String.format(Locale.getDefault(), "+%.2f%% vs target", diff)
+        } else {
+            String.format(Locale.getDefault(), "%.2f%% vs target", diff)
+        }
+
+        return AttendanceWidgetState(
+            attendancePercentage = percentage,
+            attendanceStatus = status,
+            periodsCanSkip = periodsCanSkip,
+            periodsNeedToAttend = periodsNeedToAttend,
+            todayAttendanceTimeline = timeline,
+            attendedClasses = attended,
+            heldClasses = held,
+            lastUpdated = lastUpdatedStr,
+            studentName = student_name ?: "",
+            targetMargin = targetMargin
+        )
+    }
 }
+
+@Serializable
+enum class AttendanceStatus {
+    PRESENT,
+    ABSENT,
+    HOLIDAY,
+    LEAVE,
+    UPCOMING
+}
+
+@Serializable
+enum class OverallAttendanceStatus {
+    SAFE,
+    WARNING,
+    CRITICAL
+}
+
+@Serializable
+data class AttendanceWidgetState(
+    val attendancePercentage: Double = 0.0,
+    val attendanceStatus: OverallAttendanceStatus = OverallAttendanceStatus.SAFE,
+    val periodsCanSkip: Int = 0,
+    val periodsNeedToAttend: Int = 0,
+    val todayAttendanceTimeline: List<AttendanceStatus> = emptyList(),
+    val attendedClasses: Int = 0,
+    val heldClasses: Int = 0,
+    val lastUpdated: String = "",
+    val studentName: String = "",
+    val targetMargin: String = ""
+)
 
 @Serializable
 data class UserAccount(
@@ -208,3 +306,4 @@ data class FacultyInfo(
     val email: String? = null,
     val phone: String? = null
 )
+
