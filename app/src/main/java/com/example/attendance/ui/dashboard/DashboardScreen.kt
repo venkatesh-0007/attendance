@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -73,6 +74,7 @@ fun DashboardScreen(
     onNavigateToTimetable: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToCalendar: () -> Unit,
+    onNavigateToTable: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -240,7 +242,9 @@ fun DashboardScreen(
                     val countSummary = currentData.getTodayCountSummary(todaySummary)
 
                     ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToTable() },
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.elevatedCardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -250,15 +254,26 @@ fun DashboardScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "Today's Attendance Status",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Today's Attendance Status",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "View Grid →",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
 
                             if (countSummary.totalClasses == 0) {
                                 Text(
-                                    text = "No classes recorded for today",
+                                    text = "No classes recorded for today • Tap to view grid",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -297,18 +312,18 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             MenuCard(
-                                title = "Subject Attendance",
+                                title = "Subject Breakdown",
                                 icon = Icons.AutoMirrored.Filled.List,
-                                description = "View subject breakdown",
+                                description = "Subject details",
                                 modifier = Modifier.weight(1f),
                                 onClick = onNavigateToAttendance
                             )
                             MenuCard(
-                                title = "Class Schedule",
-                                icon = Icons.Default.DateRange,
-                                description = "Weekly timetable",
+                                title = "Attendance Grid",
+                                icon = Icons.Default.GridView,
+                                description = "Full register table",
                                 modifier = Modifier.weight(1f),
-                                onClick = onNavigateToTimetable
+                                onClick = onNavigateToTable
                             )
                         }
                         Row(
@@ -316,12 +331,24 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             MenuCard(
+                                title = "Class Schedule",
+                                icon = Icons.Default.DateRange,
+                                description = "Weekly timetable",
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToTimetable
+                            )
+                            MenuCard(
                                 title = "Attendance Calendar",
                                 icon = Icons.Default.CalendarMonth,
-                                description = "Monthly history & PDF export",
+                                description = "Monthly history",
                                 modifier = Modifier.weight(1f),
                                 onClick = onNavigateToCalendar
                             )
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             MenuCard(
                                 title = "Settings",
                                 icon = Icons.Default.Settings,
