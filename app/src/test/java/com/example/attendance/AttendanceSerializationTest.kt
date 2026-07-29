@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
+import java.util.Calendar
 
 class AttendanceSerializationTest {
 
@@ -111,5 +112,37 @@ class AttendanceSerializationTest {
         val summary = response.getTodaySummary("23/07")
         assertEquals(3, summary.first) // 1 in Math + 2 in Chemistry
         assertEquals(1, summary.second) // 1 in Physics
+    }
+
+    @Test
+    fun testTodayColumnIndexWithDateHeaders() {
+        val payload = """
+            {
+                "attendance_table": {
+                    "headers": ["Sl.No", "Subject", "22/06", "24/07", "25/07", "27/07", "Atted/Held", "%"],
+                    "rows": [
+                        ["1", "Math", "P", "A", "H", "L", "17/19", "89.47%"]
+                    ]
+                }
+            }
+        """.trimIndent()
+        val response = json.decodeFromString<AttendanceResponse>(payload)
+        
+        // When today date matches 27/07
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.MONTH, Calendar.JULY)
+        calendar.set(Calendar.DAY_OF_MONTH, 27)
+        
+        val index = response.getTodayColumnIndex("27/07")
+        // It should match 27/07, which is index 5
+        assertEquals(5, index)
+        
+        // If today matches 25/07
+        val index2 = response.getTodayColumnIndex("25/07")
+        assertEquals(4, index2)
+
+        // Non-existent date: should return -1
+        val fallbackIndex = response.getTodayColumnIndex("28/07")
+        assertEquals(-1, fallbackIndex)
     }
 }

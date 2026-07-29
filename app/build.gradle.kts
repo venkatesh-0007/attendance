@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.attendance"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 70
+        versionName = "0.7"
     }
 
     buildTypes {
@@ -44,6 +44,29 @@ android {
 kotlin {
     jvmToolchain(17)
 }
+
+val releasesDir = file("/Users/venkatesh/Documents/Projects/Releases")
+
+tasks.register<Copy>("copyApkToReleases") {
+    from(layout.buildDirectory.dir("outputs/apk/debug"))
+    include("*.apk")
+    into(releasesDir)
+    rename { "Attendance-v0.7-debug.apk" }
+}
+
+tasks.register<Copy>("copyApkToReleasesDefault") {
+    from(layout.buildDirectory.dir("outputs/apk/debug"))
+    include("*.apk")
+    into(releasesDir)
+    rename { "Attendance-debug.apk" }
+}
+
+afterEvaluate {
+    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToReleases", "copyApkToReleasesDefault")
+}
+
+
+
 
 dependencies {
   val composeBom = platform(libs.androidx.compose.bom)
