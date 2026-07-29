@@ -16,6 +16,12 @@ import com.example.attendance.ui.attendance.AttendanceTableScreen
 import com.example.attendance.ui.timetable.TimetableScreen
 import com.example.attendance.ui.settings.SettingsScreen
 import com.example.attendance.ui.calendar.AttendanceCalendarScreen
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 
 @Composable
 fun MainNavigation(initialTarget: String? = null) {
@@ -55,6 +61,26 @@ fun MainNavigation(initialTarget: String? = null) {
             if (backStack.size > 1) {
                 backStack.removeLastOrNull()
             }
+        },
+        transitionSpec = {
+            slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(400)
+            ) + fadeIn(animationSpec = tween(400)) togetherWith
+            slideOutHorizontally(
+                targetOffsetX = { -it },
+                animationSpec = tween(400)
+            ) + fadeOut(animationSpec = tween(400))
+        },
+        popTransitionSpec = {
+            slideInHorizontally(
+                initialOffsetX = { -it },
+                animationSpec = tween(400)
+            ) + fadeIn(animationSpec = tween(400)) togetherWith
+            slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(400)
+            ) + fadeOut(animationSpec = tween(400))
         },
         entryProvider = entryProvider {
             entry<Login> {
