@@ -67,7 +67,7 @@ class BadgeWidget : GlanceAppWidget() {
             }
 
             val widgetState: AttendanceWidgetState? = remember(response, securePrefs.lastUpdated) {
-                response?.toWidgetState(securePrefs.lastUpdated)
+                response?.toWidgetState(securePrefs.notificationThreshold.toDouble(), securePrefs.lastUpdated)
             }
 
             GlanceTheme {
