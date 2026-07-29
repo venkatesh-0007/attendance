@@ -51,7 +51,8 @@ fun AttendanceTableScreen(
         },
         modifier = modifier
     ) { paddingValues ->
-        if (table == null || table.rows.isNullOrEmpty()) {
+        val cleanTable = attendanceState?.getCleanTable()
+        if (cleanTable == null || cleanTable.rows.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -65,11 +66,11 @@ fun AttendanceTableScreen(
                 )
             }
         } else {
-            val headers = table.headers ?: emptyList()
-            val rows = table.rows ?: emptyList()
+            val headers = cleanTable.headers
+            val rows = cleanTable.rows
 
-            val subjectHeader = headers.getOrNull(0) ?: "Subject"
-            val dataHeaders = if (headers.size > 1) headers.subList(1, headers.size) else emptyList()
+            val subjectHeader = headers.getOrNull(1) ?: "Subject"
+            val dataHeaders = if (headers.size > 2) headers.subList(2, headers.size) else emptyList()
 
             val lazyListState = rememberLazyListState()
             val horizontalScrollState = rememberScrollState()
@@ -84,7 +85,7 @@ fun AttendanceTableScreen(
                 // -------------------------------------------------------------
                 Column(
                     modifier = Modifier
-                        .width(130.dp)
+                        .width(160.dp)
                         .fillMaxHeight()
                         .background(MaterialTheme.colorScheme.surface)
                 ) {
@@ -107,7 +108,7 @@ fun AttendanceTableScreen(
                         state = lazyListState
                     ) {
                         items(rows) { row ->
-                            val subjectName = row.getOrNull(0) ?: ""
+                            val subjectName = row.getOrNull(1) ?: ""
                             GridCell(
                                 text = subjectName,
                                 isHeader = false,
@@ -160,10 +161,10 @@ fun AttendanceTableScreen(
                         state = lazyListState
                     ) {
                         items(rows) { row ->
-                            val dataCells = if (row.size > 1) row.subList(1, row.size) else emptyList()
+                            val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
                             Row(modifier = Modifier.height(48.dp)) {
-                                dataCells.forEachIndexed { colIdx, cellText ->
-                                    val headerText = dataHeaders.getOrNull(colIdx) ?: ""
+                                dataHeaders.forEachIndexed { colIdx, headerText ->
+                                    val cellText = dataCells.getOrNull(colIdx) ?: ""
                                     val cellWidth = getColumnWidth(headerText)
                                     GridCell(
                                         text = cellText,
@@ -184,11 +185,12 @@ fun AttendanceTableScreen(
 }
 
 private fun getColumnWidth(headerText: String): Dp {
-    val clean = headerText.trim()
+    val clean = headerText.trim().lowercase()
     return when {
-        clean.contains("Atted", ignoreCase = true) || clean.contains("Held", ignoreCase = true) -> 90.dp
-        clean == "%" -> 70.dp
-        else -> 64.dp
+        clean.contains("held") || clean.contains("atted") -> 100.dp
+        clean.contains("%") -> 70.dp
+        clean.contains("/") -> 65.dp
+        else -> 60.dp
     }
 }
 
