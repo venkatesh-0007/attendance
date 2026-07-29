@@ -23,6 +23,11 @@ data class TodayCountSummary(
     }
 }
 
+data class CleanTable(
+    val headers: List<String>,
+    val rows: List<List<String>>
+)
+
 @Serializable
 data class AttendanceResponse(
     val student_name: String? = null,
@@ -37,100 +42,198 @@ data class AttendanceResponse(
     val overallPercentage: Double
         get() = total_info?.total_percentage?.replace("%", "")?.toDoubleOrNull() ?: 0.0
 
-    fun getTodayColumnIndex(todayDateStr: String): Int {
-        val table = attendance_table ?: return -1
-        val headers = table.headers ?: return -1
+    fun getCleanTable(): CleanTable? {
+        val table = attendance_table ?: return null
+        val rawHeaders = table.headers ?: return null
+        val rawRows = table.rows ?: return null
+        if (rawHeaders.isEmpty() || rawRows.isEmpty()) return null
 
-        val parts = todayDateStr.split("/", "-")
-        val targetDay = parts.getOrNull(0)?.toIntOrNull()
-        val targetMonth = parts.getOrNull(1)?.toIntOrNull()
+        val headers = if (rawHeaders.isNotEmpty() && rawHeaders[0].length > 100) {
+            rawHeaders.drop(1)
+        } else {
+            rawHeaders
+        }
 
-        return headers.indexOfFirst { header ->
-            val clean = header.trim()
-            if (clean == todayDateStr || clean.startsWith(todayDateStr) || clean.replace("-", "/").contains(todayDateStr)) {
-                true
-            } else if (targetDay != null && targetMonth != null) {
-                val hParts = clean.split("/", "-")
-                if (hParts.size >= 2) {
-                    val hDay = hParts[0].toIntOrNull()
-                    val hMonth = hParts[1].toIntOrNull()
-                    hDay == targetDay && hMonth == targetMonth
-                } else false
+        val rows = rawRows.filter { row ->
+            row.isNotEmpty() && 
+            row.getOrNull(0)?.trim()?.lowercase() != "sl.no" &&
+            !row.getOrNull(0).isNullOrBlank() &&
+            row.getOrNull(1)?.trim()?.lowercase() != "subject"
+        }
+
+        val percentIdx = headers.indexOfFirst { it.trim() == "%" }
+        val finalHeaders = if (percentIdx != -1) headers.take(percentIdx + 1) else headers
+        val finalRows = rows.map { row ->
+            if (percentIdx != -1 && percentIdx < row.size) {
+                row.take(percentIdx + 1)
+            } else {
+                row
+            }
+        }
+
+        return CleanTable(finalHeaders, finalRows)
+    }
+
+    private fun isDateHeader(header: String): Boolean {
+        val clean = header.trim().lowercase()
+        if (clean.isEmpty()) return false
+
+        val nonDateKeywords = listOf(
+            "sl", "s.no", "no", "subject", "sub", "atted", "held", "att", "tot", "total",
+            "%", "percent", "percentage", "cna", "ratio", "status", "action"
+        )
+        if (nonDateKeywords.any { clean.contains(it) }) return false
+
+        val monthNames = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+        val hasDigits = clean.any { it.isDigit() }
+        val hasMonth = monthNames.any { clean.contains(it) }
+
+        return hasDigits || hasMonth
+    }
+
+    fun getTodayColumnIndex(todayDateStr: String = ""): Int {
+        val cleanTable = getCleanTable() ?: return -1
+        val headers = cleanTable.headers
+
+        val todayCalendar = Calendar.getInstance()
+        var targetDay = todayCalendar.get(Calendar.DAY_OF_MONTH)
+        var targetMonth = todayCalendar.get(Calendar.MONTH) + 1
+
+        if (todayDateStr.isNotEmpty()) {
+            val parts = todayDateStr.split("/", "-", " ", ".").mapNotNull { it.toIntOrNull() }
+            if (parts.size >= 2) {
+                targetDay = parts[0]
+                targetMonth = parts[1]
+            }
+        }
+
+        // 1. Try matching day and month in valid date headers
+        val matchedIndex = headers.indexOfFirst { header ->
+            if (!isDateHeader(header)) return@indexOfFirst false
+
+            val clean = header.trim().lowercase()
+            if (todayDateStr.isNotEmpty()) {
+                val cleanToday = todayDateStr.trim().lowercase().replace("-", "/")
+                val cleanHeader = clean.replace("-", "/")
+                if (cleanHeader.contains(cleanToday) || cleanToday.contains(cleanHeader)) {
+                    return@indexOfFirst true
+                }
+            }
+
+            // Month name matching (e.g., "29 Jul", "29-Jul")
+            val monthNames = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+            val foundMonthIdx = monthNames.indexOfFirst { clean.contains(it) }
+            if (foundMonthIdx != -1) {
+                val hMonth = foundMonthIdx + 1
+                val hDay = clean.filter { it.isDigit() }.toIntOrNull()
+                if (hDay == targetDay && hMonth == targetMonth) {
+                    return@indexOfFirst true
+                }
+            }
+
+            val numberParts = clean.split("/", "-", " ", ".").mapNotNull { it.toIntOrNull() }
+            if (numberParts.size >= 2) {
+                val hDay = numberParts[0]
+                val hMonth = numberParts[1]
+                hDay == targetDay && hMonth == targetMonth
             } else false
+        }
+
+        return matchedIndex
+    }
+
+    fun getTodayAttendanceTimeline(todayDateStr: String = ""): List<AttendanceStatus> {
+        val cleanTable = getCleanTable() ?: return emptyList()
+        val rows = cleanTable.rows
+        val headers = cleanTable.headers
+
+        val columnIndex = getTodayColumnIndex(todayDateStr)
+        if (columnIndex == -1) return emptyList()
+
+        val timeline = mutableListOf<AttendanceStatus>()
+
+        // 1. Collect all marked period statuses from attendance_table for today's column
+        rows.forEach { row ->
+            if (columnIndex < row.size) {
+                val cellStatus = row[columnIndex].trim().uppercase()
+                if (cellStatus.isNotEmpty() && cellStatus != "-" && cellStatus != "0") {
+                    cellStatus.forEach { char ->
+                        if (char == 'P' || char == 'A' || char == 'H' || char == 'L') {
+                            timeline.add(mapCharToStatus(char))
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Append pending periods if timetable defines total scheduled classes for today
+        val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
+        val dayTimetable = timetable?.firstOrNull { it.day.equals(dayName, ignoreCase = true) }
+
+        if (dayTimetable != null && dayTimetable.classes.isNotEmpty()) {
+            val totalScheduled = dayTimetable.classes.size
+            val currentMarkedCount = timeline.size
+
+            if (totalScheduled > currentMarkedCount) {
+                val pendingCount = totalScheduled - currentMarkedCount
+                repeat(pendingCount) {
+                    timeline.add(AttendanceStatus.UPCOMING)
+                }
+            }
+        }
+
+        return timeline
+    }
+
+    private fun mapCharToStatus(char: Char): AttendanceStatus {
+        return when (char.uppercaseChar()) {
+            'P' -> AttendanceStatus.PRESENT
+            'A' -> AttendanceStatus.ABSENT
+            'H' -> AttendanceStatus.HOLIDAY
+            'L' -> AttendanceStatus.LEAVE
+            else -> AttendanceStatus.UPCOMING
         }
     }
 
-    fun getTodayCountSummary(todayDateStr: String): TodayCountSummary {
-        val statusString = getTodayStatusString(todayDateStr)
-        if (statusString.isEmpty()) return TodayCountSummary(0, 0, 0, 0)
+    fun getTodayCountSummary(todayDateStr: String = ""): TodayCountSummary {
+        val timeline = getTodayAttendanceTimeline(todayDateStr)
+        if (timeline.isEmpty()) return TodayCountSummary(0, 0, 0, 0)
 
-        val presents = statusString.count { it == 'P' }
-        val absents = statusString.count { it == 'A' }
-        val pending = statusString.count { it == '-' }
-        return TodayCountSummary(presents, absents, pending, statusString.length)
+        val presents = timeline.count { it == AttendanceStatus.PRESENT }
+        val absents = timeline.count { it == AttendanceStatus.ABSENT }
+        val pending = timeline.count { it == AttendanceStatus.UPCOMING }
+        return TodayCountSummary(presents, absents, pending, timeline.size)
     }
 
-    fun getTodaySummary(todayDateStr: String): Pair<Int, Int> {
+    fun getTodaySummary(todayDateStr: String = ""): Pair<Int, Int> {
         val countSummary = getTodayCountSummary(todayDateStr)
         return countSummary.presents to countSummary.absents
     }
 
-    fun getTodayStatusString(todayDateStr: String): String {
-        val table = attendance_table ?: return ""
-        val rows = table.rows ?: return ""
-        val columnIndex = getTodayColumnIndex(todayDateStr)
-        if (columnIndex == -1) return ""
-
-        val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
-        val dayTimetable = timetable?.firstOrNull { it.day.equals(dayName, ignoreCase = true) }
-
-        val calendar = Calendar.getInstance()
-        val nowMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-
-        if (dayTimetable != null && dayTimetable.classes.isNotEmpty()) {
-            val classes = dayTimetable.classes.sortedBy { getStartMinutes(it.time) }
-            val subjectOccurrenceCount = mutableMapOf<String, Int>()
-            val result = StringBuilder()
-
-            classes.forEach { timetableClass ->
-                val subjectName = timetableClass.subject
-                val row = rows.firstOrNull { it.size > 1 && it[1].contains(subjectName, ignoreCase = true) }
-
-                val statusChar = if (row != null && columnIndex < row.size) {
-                    val fullStatus = row[columnIndex].trim().uppercase()
-                    val occurrence = subjectOccurrenceCount.getOrDefault(subjectName, 0)
-                    subjectOccurrenceCount[subjectName] = occurrence + 1
-
-                    if (occurrence < fullStatus.length) {
-                        val char = fullStatus[occurrence]
-                        if (char == 'A' && isFutureClass(timetableClass.time, nowMinutes)) {
-                            '-'
-                        } else {
-                            char
-                        }
-                    } else {
-                        if (isFutureClass(timetableClass.time, nowMinutes)) '-' else '-'
-                    }
-                } else {
-                    if (isFutureClass(timetableClass.time, nowMinutes)) '-' else '-'
-                }
-                result.append(statusChar)
+    fun getTodayStatusString(todayDateStr: String = ""): String {
+        val timeline = getTodayAttendanceTimeline(todayDateStr)
+        return timeline.joinToString("") { status ->
+            when (status) {
+                AttendanceStatus.PRESENT -> "P"
+                AttendanceStatus.ABSENT -> "A"
+                AttendanceStatus.HOLIDAY -> "H"
+                AttendanceStatus.LEAVE -> "L"
+                AttendanceStatus.UPCOMING -> "-"
             }
-            return result.toString()
-        } else {
-            val result = StringBuilder()
-            rows.forEach { row ->
-                if (columnIndex < row.size) {
-                    val fullStatus = row[columnIndex].trim().uppercase()
-                    fullStatus.forEach { char ->
-                        if (char == 'P' || char == 'A') {
-                            result.append(char)
-                        }
-                    }
-                }
-            }
-            return result.toString()
         }
+    }
+
+    private fun isSubjectMatch(cellText: String, targetSubject: String): Boolean {
+        val cleanCell = cellText.lowercase().trim()
+        val cleanTarget = targetSubject.lowercase().trim()
+        if (cleanCell.isEmpty() || cleanTarget.isEmpty()) return false
+
+        if (cleanCell.contains(cleanTarget) || cleanTarget.contains(cleanCell)) return true
+
+        val cellWords = cleanCell.split(" ", "-", "_", "(", ")", ".").filter { it.length > 2 }
+        val targetWords = cleanTarget.split(" ", "-", "_", "(", ")", ".").filter { it.length > 2 }
+
+        return cellWords.any { word -> targetWords.contains(word) }
     }
 
     private fun getStartMinutes(timeString: String): Int {
@@ -151,43 +254,34 @@ data class AttendanceResponse(
         return getStartMinutes(timeString) > (nowMinutes + 5)
     }
 
-    fun getTodayAttendanceTimeline(todayDateStr: String): List<AttendanceStatus> {
-        val statusString = getTodayStatusString(todayDateStr)
-        if (statusString.isEmpty()) return emptyList()
 
-        return statusString.map { char ->
-            when (char.uppercaseChar()) {
-                'P' -> AttendanceStatus.PRESENT
-                'A' -> AttendanceStatus.ABSENT
-                'H' -> AttendanceStatus.HOLIDAY
-                'L' -> AttendanceStatus.LEAVE
-                else -> AttendanceStatus.UPCOMING
-            }
-        }
-    }
 
-    fun toWidgetState(lastUpdatedMillis: Long = System.currentTimeMillis()): AttendanceWidgetState {
+    fun toWidgetState(targetThreshold: Double = 75.0, lastUpdatedMillis: Long = System.currentTimeMillis()): AttendanceWidgetState {
         val percentage = overallPercentage
         val status = when {
-            percentage >= 85.0 -> OverallAttendanceStatus.SAFE
-            percentage >= 75.0 -> OverallAttendanceStatus.WARNING
+            percentage >= targetThreshold + 10.0 -> OverallAttendanceStatus.SAFE
+            percentage >= targetThreshold -> OverallAttendanceStatus.WARNING
             else -> OverallAttendanceStatus.CRITICAL
         }
 
         val attended = total_info?.total_attended ?: 0
         val held = total_info?.total_held ?: 0
 
-        val calculatedCanSkip = if (held > 0 && percentage >= 75.0) {
-            val maxSkip = kotlin.math.floor((attended - 0.75 * held) / 0.75).toInt()
+        val targetFactor = targetThreshold / 100.0
+        val calculatedCanSkip = if (held > 0 && percentage >= targetThreshold) {
+            val maxSkip = kotlin.math.floor((attended - targetFactor * held) / targetFactor).toInt()
             maxOf(0, maxSkip)
         } else 0
-        val periodsCanSkip = total_info?.hours_can_skip ?: calculatedCanSkip
+        val periodsCanSkip = if (targetThreshold == 75.0) (total_info?.hours_can_skip ?: calculatedCanSkip) else calculatedCanSkip
 
-        val calculatedNeedToAttend = if (held > 0 && percentage < 75.0) {
-            val minAttend = kotlin.math.ceil((0.75 * held - attended) / 0.25).toInt()
+        val calculatedNeedToAttend = if (held > 0 && percentage < targetThreshold) {
+            val divisor = 1.0 - targetFactor
+            val minAttend = if (divisor > 0.0) {
+                kotlin.math.ceil((targetFactor * held - attended) / divisor).toInt()
+            } else 0
             maxOf(0, minAttend)
         } else 0
-        val periodsNeedToAttend = total_info?.additional_hours_needed ?: calculatedNeedToAttend
+        val periodsNeedToAttend = if (targetThreshold == 75.0) (total_info?.additional_hours_needed ?: calculatedNeedToAttend) else calculatedNeedToAttend
 
         val todayDate = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
         val timeline = getTodayAttendanceTimeline(todayDate)
@@ -198,7 +292,7 @@ data class AttendanceResponse(
             SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
         }
 
-        val diff = percentage - 75.0
+        val diff = percentage - targetThreshold
         val targetMargin = if (diff >= 0) {
             String.format(Locale.getDefault(), "+%.2f%% vs target", diff)
         } else {
