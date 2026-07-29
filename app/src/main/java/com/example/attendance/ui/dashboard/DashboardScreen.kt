@@ -1,5 +1,6 @@
 package com.example.attendance.ui.dashboard
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -83,6 +84,13 @@ fun DashboardScreen(
 
     val scrollState = rememberScrollState()
 
+    LaunchedEffect(attendanceState) {
+        attendanceState?.attendance_table?.let { table ->
+            println("ATT_DEBUG HEADERS: ${table.headers}")
+            println("ATT_DEBUG ROWS: ${table.rows}")
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -124,238 +132,244 @@ fun DashboardScreen(
         },
         modifier = modifier
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                viewModel.lastUpdated.takeIf { it > 0 }?.let { timestamp ->
-                    val format = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
-                    Text(
-                        text = "Last updated: ${format.format(Date(timestamp))}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            viewModel.lastUpdated.takeIf { it > 0 }?.let { timestamp ->
+                val format = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+                Text(
+                    text = "Last updated: ${format.format(Date(timestamp))}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            val currentData = attendanceState
+            if (currentData == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Fetching attendance data...", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
-
-                val currentData = attendanceState
-                if (currentData == null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
+            } else {
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(tween(500)) + slideInVertically(animationSpec = tween(500), initialOffsetY = { 60 })
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("Fetching attendance data...", style = MaterialTheme.typography.bodyMedium)
+                        val overall = currentData.overallPercentage
+                        val threshold = viewModel.notificationThreshold
+                        val isBelow = overall < threshold
+                        val bannerText = if (isBelow) {
+                            "Warning: Your attendance (${String.format(Locale.getDefault(), "%.2f", overall)}%) is below your target threshold ($threshold%)."
+                        } else {
+                            "Good Standing: Your attendance (${String.format(Locale.getDefault(), "%.2f", overall)}%) is above your target threshold ($threshold%)."
                         }
-                    }
-                } else {
-                    val overall = currentData.overallPercentage
-                    val threshold = viewModel.notificationThreshold
-                    val isBelow = overall < threshold
-                    val bannerText = if (isBelow) {
-                        "Warning: Your attendance (${String.format(Locale.getDefault(), "%.2f", overall)}%) is below your target threshold ($threshold%)."
-                    } else {
-                        "Good Standing: Your attendance (${String.format(Locale.getDefault(), "%.2f", overall)}%) is above your target threshold ($threshold%)."
-                    }
-                    val bannerColor = if (isBelow) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
-                    val bannerTextColor = if (isBelow) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                        val bannerColor = if (isBelow) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+                        val bannerTextColor = if (isBelow) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
 
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = bannerColor)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = bannerText,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = bannerTextColor
-                            )
-                        }
-                    }
-
-                    // Attendance Gauge Card
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            AttendanceGauge(
-                                percentage = currentData.overallPercentage,
-                                threshold = viewModel.notificationThreshold
-                            )
-
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                InfoItem(
-                                    label = "Attended Classes",
-                                    value = "${currentData.total_info?.total_attended ?: 0}"
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .height(40.dp)
-                                        .width(1.dp)
-                                        .background(MaterialTheme.colorScheme.outlineVariant)
-                                )
-                                InfoItem(
-                                    label = "Total Held",
-                                    value = "${currentData.total_info?.total_held ?: 0}"
-                                )
-                            }
-                        }
-                    }
-
-                    // Today's Status Badges Card
-                    val todaySummary = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
-                    val countSummary = currentData.getTodayCountSummary(todaySummary)
-
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToTable() },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.elevatedCardColors(containerColor = bannerColor)
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Today's Attendance Status",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "View Grid →",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    text = bannerText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = bannerTextColor
                                 )
                             }
+                        }
 
-                            if (countSummary.totalClasses == 0) {
-                                Text(
-                                    text = "No classes recorded for today • Tap to view grid",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        // Attendance Gauge Card
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(20.dp)
+                            ) {
+                                AttendanceGauge(
+                                    percentage = currentData.overallPercentage,
+                                    threshold = viewModel.notificationThreshold
                                 )
-                            } else {
-                                Text(
-                                    text = countSummary.toDisplayString(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                                 )
 
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    InfoItem(
+                                        label = "Attended Classes",
+                                        value = "${currentData.total_info?.total_attended ?: 0}"
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .height(40.dp)
+                                            .width(1.dp)
+                                            .background(MaterialTheme.colorScheme.outlineVariant)
+                                    )
+                                    InfoItem(
+                                        label = "Total Held",
+                                        value = "${currentData.total_info?.total_held ?: 0}"
+                                    )
+                                }
+                            }
+                        }
+
+                        // Today's Status Badges Card
+                        val todaySummary = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
+                        val todayTimeline = currentData.getTodayAttendanceTimeline(todaySummary)
+                        val countSummary = currentData.getTodayCountSummary(todaySummary)
+
+                        ElevatedCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToTable() },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    repeat(countSummary.presents) { index ->
-                                        PeriodCircle(periodNumber = index + 1, status = 'P')
-                                    }
-                                    repeat(countSummary.absents) { index ->
-                                        PeriodCircle(periodNumber = countSummary.presents + index + 1, status = 'A')
-                                    }
-                                    repeat(countSummary.pending) { index ->
-                                        PeriodCircle(periodNumber = countSummary.presents + countSummary.absents + index + 1, status = '-')
+                                    Text(
+                                        text = "Today's Attendance Status",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "View Grid →",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                if (todayTimeline.isEmpty()) {
+                                    Text(
+                                        text = "No classes recorded for today • Tap to view grid",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Text(
+                                        text = countSummary.toDisplayString(),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        todayTimeline.forEachIndexed { index, status ->
+                                            val charStatus = when (status) {
+                                                com.example.attendance.data.model.AttendanceStatus.PRESENT -> 'P'
+                                                com.example.attendance.data.model.AttendanceStatus.ABSENT -> 'A'
+                                                com.example.attendance.data.model.AttendanceStatus.HOLIDAY -> 'H'
+                                                com.example.attendance.data.model.AttendanceStatus.LEAVE -> 'L'
+                                                else -> '-'
+                                            }
+                                            PeriodCircle(periodNumber = index + 1, status = charStatus)
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // Menu Navigation Grid
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        // Menu Navigation Grid
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            MenuCard(
-                                title = "Subject Breakdown",
-                                icon = Icons.AutoMirrored.Filled.List,
-                                description = "Subject details",
-                                modifier = Modifier.weight(1f),
-                                onClick = onNavigateToAttendance
-                            )
-                            MenuCard(
-                                title = "Attendance Grid",
-                                icon = Icons.Default.GridView,
-                                description = "Full register table",
-                                modifier = Modifier.weight(1f),
-                                onClick = onNavigateToTable
-                            )
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            MenuCard(
-                                title = "Class Schedule",
-                                icon = Icons.Default.DateRange,
-                                description = "Weekly timetable",
-                                modifier = Modifier.weight(1f),
-                                onClick = onNavigateToTimetable
-                            )
-                            MenuCard(
-                                title = "Attendance Calendar",
-                                icon = Icons.Default.CalendarMonth,
-                                description = "Monthly history",
-                                modifier = Modifier.weight(1f),
-                                onClick = onNavigateToCalendar
-                            )
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            MenuCard(
-                                title = "Settings",
-                                icon = Icons.Default.Settings,
-                                description = "Preferences & threshold",
-                                modifier = Modifier.weight(1f),
-                                onClick = onNavigateToSettings
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                MenuCard(
+                                    title = "Subject Breakdown",
+                                    icon = Icons.AutoMirrored.Filled.List,
+                                    description = "Subject details",
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToAttendance
+                                )
+                                MenuCard(
+                                    title = "Attendance Grid",
+                                    icon = Icons.Default.GridView,
+                                    description = "Full register table",
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToTable
+                                )
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                MenuCard(
+                                    title = "Class Schedule",
+                                    icon = Icons.Default.DateRange,
+                                    description = "Weekly timetable",
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToTimetable
+                                )
+                                MenuCard(
+                                    title = "Attendance Calendar",
+                                    icon = Icons.Default.CalendarMonth,
+                                    description = "Monthly history",
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToCalendar
+                                )
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                MenuCard(
+                                    title = "Settings",
+                                    icon = Icons.Default.Settings,
+                                    description = "Preferences & threshold",
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToSettings
+                                )
+                            }
                         }
                     }
                 }
