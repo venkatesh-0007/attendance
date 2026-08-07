@@ -3,18 +3,23 @@ package com.example.attendance.ui.attendance
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -22,6 +27,9 @@ import androidx.lifecycle.ViewModel
 import com.example.attendance.data.local.SecurePreferences
 import com.example.attendance.data.model.SubjectSummary
 import com.example.attendance.data.repository.AttendanceRepository
+import java.text.SimpleDateFormat
+import java.util.*
+
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -40,6 +48,9 @@ class AttendanceViewModel @Inject constructor(
     var currentSortOrder = mutableStateOf(SortOrder.ALPHABETICAL)
         private set
 
+    val simulatedLeaves = mutableStateListOf<Long>()
+    val simulatedHolidays = mutableStateListOf<Long>()
+
     fun updateSearchQuery(query: String) {
         searchQuery.value = query
     }
@@ -48,12 +59,37 @@ class AttendanceViewModel @Inject constructor(
         currentSortOrder.value = order
     }
 
+    fun addSimulatedLeave(millis: Long) {
+        if (!simulatedLeaves.contains(millis)) {
+            simulatedLeaves.add(millis)
+            simulatedHolidays.remove(millis)
+        }
+    }
+
+    fun addSimulatedHoliday(millis: Long) {
+        if (!simulatedHolidays.contains(millis)) {
+            simulatedHolidays.add(millis)
+            simulatedLeaves.remove(millis)
+        }
+    }
+
+    fun removeSimulatedDate(millis: Long) {
+        simulatedLeaves.remove(millis)
+        simulatedHolidays.remove(millis)
+    }
+
+    fun resetSimulation() {
+        simulatedLeaves.clear()
+        simulatedHolidays.clear()
+    }
+
     enum class SortOrder {
         ALPHABETICAL,
         PERCENTAGE_ASC,
         PERCENTAGE_DESC
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,6 +146,55 @@ fun AttendanceScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            val simulatedLeaves = viewModel.simulatedLeaves
+            val simulatedHolidays = viewModel.simulatedHolidays
+            val simResult = remember(attendanceState, simulatedLeaves.toList(), simulatedHolidays.toList(), threshold) {
+                attendanceState?.calculateSimulation(
+                    leaveDates = simulatedLeaves.toSet(),
+                    holidayDates = simulatedHolidays.toSet(),
+                    targetThreshold = threshold.toDouble()
+                )
+            }
+
+            var showDatePicker by remember { mutableStateOf(false) }
+
+            if (showDatePicker) {
+                val datePickerState = rememberDatePickerState()
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                datePickerState.selectedDateMillis?.let { millis ->
+                                    viewModel.addSimulatedLeave(millis)
+                                }
+                                showDatePicker = false
+                            }
+                        ) {
+                            Text("Mark Leave")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+
+            if (simResult != null) {
+                AttendanceSimulatorCard(
+                    simResult = simResult,
+                    simulatedLeaves = simulatedLeaves,
+                    onAddLeaveClick = { showDatePicker = true },
+                    onRemoveDate = { viewModel.removeSimulatedDate(it) },
+                    onResetClick = { viewModel.resetSimulation() },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -117,6 +202,7 @@ fun AttendanceScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.updateSearchQuery(it) },
@@ -274,3 +360,154 @@ fun SubjectCard(subject: SubjectSummary, threshold: Int, onClick: () -> Unit) {
         }
     }
 }
+
+@Composable
+fun AttendanceSimulatorCard(
+    simResult: com.example.attendance.data.model.SimulationResult,
+    simulatedLeaves: List<Long>,
+    onAddLeaveClick: () -> Unit,
+    onRemoveDate: (Long) -> Unit,
+    onResetClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val darkTheme = isSystemInDarkTheme()
+    val isSafe = simResult.simulatedPercentage >= 75.0
+    val dateFormat = remember { SimpleDateFormat("dd MMM", Locale.getDefault()) }
+
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (darkTheme) Color(0xFF1E293B) else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.EventAvailable,
+                        contentDescription = "Leave Simulator",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Leave & Bunk Simulator",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (simulatedLeaves.isNotEmpty()) {
+                    TextButton(onClick = onResetClick, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                        Text("Reset", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left Block: Skip margin
+                Surface(
+                    color = if (isSafe) Color(0xFF1B4D2E) else Color(0xFF4A1C1C),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 6.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (simResult.simulatedCanSkip > 0) "${simResult.simulatedCanSkip} Periods" else "${simResult.simulatedNeedToAttend} Needed",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isSafe) Color(0xFF81C784) else Color(0xFFE57373)
+                        )
+                        Text(
+                            text = if (simResult.simulatedCanSkip > 0) "Periods Can Skip" else "Classes Required",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+
+                // Right Block: Percentage
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 6.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = String.format(Locale.getDefault(), "%.2f%%", simResult.simulatedPercentage),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isSafe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = if (simulatedLeaves.isEmpty()) "Current Attendance" else "Projected Attendance",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Simulated Leaves Date Chips
+            if (simulatedLeaves.isNotEmpty()) {
+                Text(
+                    text = "Planned Leaves:",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    simulatedLeaves.forEach { millis ->
+                        InputChip(
+                            selected = true,
+                            onClick = { onRemoveDate(millis) },
+                            label = { Text(dateFormat.format(Date(millis))) },
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove date",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = onAddLeaveClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Select Future Leave Date")
+            }
+        }
+    }
+}
+
