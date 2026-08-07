@@ -36,6 +36,7 @@ import androidx.work.WorkManager
 import com.example.attendance.MainActivity
 import com.example.attendance.data.local.SecurePreferences
 import com.example.attendance.data.model.AttendanceResponse
+import com.example.attendance.data.model.AttendanceStatus
 import com.example.attendance.data.model.AttendanceWidgetState
 import com.example.attendance.data.model.OverallAttendanceStatus
 import com.example.attendance.worker.SyncWorker
@@ -70,8 +71,23 @@ class BadgeWidget : GlanceAppWidget() {
                 response?.toWidgetState(securePrefs.notificationThreshold.toDouble(), securePrefs.lastUpdated)
             }
 
+            val accentHex = securePrefs.accentColor
+            val accentColor = remember(accentHex) {
+                accentHex?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF4F46E5) // Default Indigo
+            }
+
+            val darkMode = securePrefs.darkMode
+            val isDark = when (darkMode) {
+                "DARK" -> true
+                "LIGHT" -> false
+                else -> {
+                    val currentNightMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                    currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                }
+            }
+
             GlanceTheme {
-                BadgeContent(widgetState, isRefreshing)
+                BadgeContent(widgetState, isRefreshing, accentColor, isDark)
             }
         }
     }
@@ -79,26 +95,31 @@ class BadgeWidget : GlanceAppWidget() {
     @Composable
     private fun BadgeContent(
         state: AttendanceWidgetState?,
-        isRefreshing: Boolean
+        isRefreshing: Boolean,
+        accentColor: Color,
+        isDark: Boolean
     ) {
+        val surfaceBg = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+        val onSurfaceColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+        val onSurfaceVariantColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+
         val rootModifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
-            .background(GlanceTheme.colors.surface)
-            .cornerRadius(16.dp)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .background(ColorProvider(surfaceBg))
+            .cornerRadius(18.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
 
         Row(
             modifier = rootModifier,
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalAlignment = Alignment.CenterVertically
         ) {
             if (state == null) {
                 Text(
                     text = if (isRefreshing) "Refreshing..." else "Tap to login",
                     style = TextStyle(
-                        fontSize = 12.sp,
-                        color = GlanceTheme.colors.onSurfaceVariant
+                        fontSize = 11.sp,
+                        color = ColorProvider(onSurfaceVariantColor)
                     ),
                     modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
                 )
@@ -109,49 +130,78 @@ class BadgeWidget : GlanceAppWidget() {
                     OverallAttendanceStatus.CRITICAL -> Color(0xFFC62828)
                 }
 
-                Row(
-                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD")),
-                    verticalAlignment = Alignment.CenterVertically
+                val statusBgColor = when (state.attendanceStatus) {
+                    OverallAttendanceStatus.SAFE -> Color(0xFFE8F5E9)
+                    OverallAttendanceStatus.WARNING -> Color(0xFFFFF3E0)
+                    OverallAttendanceStatus.CRITICAL -> Color(0xFFFFEBEE)
+                }
+
+                // Left: Pill badge showing percentage
+                Box(
+                    modifier = GlanceModifier
+                        .background(ColorProvider(statusBgColor))
+                        .cornerRadius(10.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clickable(createTargetAction("DASHBOARD")),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
                         style = TextStyle(
-                            fontSize = 16.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = ColorProvider(statusColor)
                         )
                     )
+                }
 
-                    Spacer(modifier = GlanceModifier.width(6.dp))
+                Spacer(modifier = GlanceModifier.width(8.dp))
 
+                // Center/Right: Today's status count text
+                val todayText = if (state.todayAttendanceTimeline.isNotEmpty()) {
+                    val presentCount = state.todayAttendanceTimeline.count { it == AttendanceStatus.PRESENT }
+                    val absentCount = state.todayAttendanceTimeline.count { it == AttendanceStatus.ABSENT }
+                    "Today: ${presentCount}P ${absentCount}A"
+                } else {
+                    "Today: No classes"
+                }
+
+                Text(
+                    text = todayText,
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ColorProvider(onSurfaceColor)
+                    ),
+                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
+                )
+            }
+
+            Spacer(modifier = GlanceModifier.width(4.dp))
+
+            // Refresh Button on Right
+            Box(
+                modifier = GlanceModifier
+                    .size(24.dp)
+                    .clickable(actionRunCallback<BadgeRefreshCallback>()),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(
+                        color = ColorProvider(accentColor),
+                        modifier = GlanceModifier.size(12.dp)
+                    )
+                } else {
                     Text(
-                        text = "(${state.attendedClasses}/${state.heldClasses})",
+                        text = "↻",
                         style = TextStyle(
-                            fontSize = 11.sp,
-                            color = GlanceTheme.colors.onSurfaceVariant
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(accentColor),
+                            textAlign = TextAlign.Center
                         )
                     )
                 }
-            }
-
-            Spacer(modifier = GlanceModifier.width(8.dp))
-
-            if (isRefreshing) {
-                CircularProgressIndicator(
-                    color = GlanceTheme.colors.primary,
-                    modifier = GlanceModifier.size(16.dp)
-                )
-            } else {
-                Text(
-                    text = "↻",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = GlanceTheme.colors.primary,
-                        textAlign = TextAlign.End
-                    ),
-                    modifier = GlanceModifier.clickable(actionRunCallback<BadgeRefreshCallback>())
-                )
             }
         }
     }
