@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.attendance"
         minSdk = 24
         targetSdk = 36
-        versionCode = 70
-        versionName = "0.7"
+        versionCode = 100
+        versionName = "1.0"
     }
 
     buildTypes {
@@ -51,7 +51,7 @@ tasks.register<Copy>("copyApkToReleases") {
     from(layout.buildDirectory.dir("outputs/apk/debug"))
     include("*.apk")
     into(releasesDir)
-    rename { "Attendance-v0.7-debug.apk" }
+    rename { "Attendance-v1-debug.apk" }
 }
 
 tasks.register<Copy>("copyApkToReleasesDefault") {
