@@ -248,6 +248,79 @@ fun DashboardScreen(
                             }
                         }
 
+                        // Calculate predictions dynamically based on user configured target threshold
+                        val percentage = currentData.overallPercentage
+                        val attended = currentData.total_info?.total_attended ?: 0
+                        val held = currentData.total_info?.total_held ?: 0
+                        val targetThreshold = viewModel.notificationThreshold.toDouble()
+                        val targetFactor = targetThreshold / 100.0
+
+                        val periodsCanSkip = if (held > 0 && percentage >= targetThreshold) {
+                            val calculatedCanSkip = kotlin.math.floor((attended - targetFactor * held) / targetFactor).toInt()
+                            maxOf(0, calculatedCanSkip)
+                        } else 0
+
+                        val periodsNeedToAttend = if (held > 0 && percentage < targetThreshold) {
+                            val divisor = 1.0 - targetFactor
+                            val calculatedNeedToAttend = if (divisor > 0.0) {
+                                kotlin.math.ceil((targetFactor * held - attended) / divisor).toInt()
+                            } else 0
+                            maxOf(0, calculatedNeedToAttend)
+                        } else 0
+
+                        val isBelowThreshold = percentage < targetThreshold
+                        val predBgColor = if (isBelowThreshold) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+                        val predTextColor = if (isBelowThreshold) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                        val predTitle = if (isBelowThreshold) "Required Attendance" else "Safe to Skip"
+                        val predValue = if (isBelowThreshold) "$periodsNeedToAttend Periods" else "$periodsCanSkip Periods"
+                        val predSubtitle = if (isBelowThreshold) {
+                            "You need to attend this many classes to reach your ${viewModel.notificationThreshold}% target"
+                        } else {
+                            "You can miss this many classes and remain above your ${viewModel.notificationThreshold}% target"
+                        }
+
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.elevatedCardColors(containerColor = predBgColor)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = predTitle,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = predTextColor.copy(alpha = 0.8f)
+                                    )
+                                    Text(
+                                        text = if (isBelowThreshold) "🔴 Target Alert" else "🟢 Safe Status",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = predTextColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = predValue,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = predTextColor
+                                )
+                                Text(
+                                    text = predSubtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = predTextColor.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+
                         // Today's Status Badges Card
                         val todaySummary = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
                         val todayTimeline = currentData.getTodayAttendanceTimeline(todaySummary)
