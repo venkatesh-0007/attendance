@@ -167,7 +167,7 @@ data class AttendanceResponse(
         }
 
         // 2. Append pending periods if timetable defines total scheduled classes for today
-        val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
+        val dayName = SimpleDateFormat("EEEE", Locale.US).format(Date())
         val dayTimetable = timetable?.firstOrNull { it.day.equals(dayName, ignoreCase = true) }
 
         if (dayTimetable != null && dayTimetable.classes.isNotEmpty()) {
@@ -259,8 +259,7 @@ data class AttendanceResponse(
     fun toWidgetState(targetThreshold: Double = 75.0, lastUpdatedMillis: Long = System.currentTimeMillis()): AttendanceWidgetState {
         val percentage = overallPercentage
         val status = when {
-            percentage >= targetThreshold + 10.0 -> OverallAttendanceStatus.SAFE
-            percentage >= targetThreshold -> OverallAttendanceStatus.WARNING
+            percentage >= targetThreshold -> OverallAttendanceStatus.SAFE
             else -> OverallAttendanceStatus.CRITICAL
         }
 
@@ -283,7 +282,7 @@ data class AttendanceResponse(
         } else 0
         val periodsNeedToAttend = if (targetThreshold == 75.0) (total_info?.additional_hours_needed ?: calculatedNeedToAttend) else calculatedNeedToAttend
 
-        val todayDate = SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date())
+        val todayDate = SimpleDateFormat("dd/MM", Locale.US).format(Date())
         val timeline = getTodayAttendanceTimeline(todayDate)
 
         val lastUpdatedStr = if (lastUpdatedMillis > 0) {
@@ -312,7 +311,83 @@ data class AttendanceResponse(
             targetMargin = targetMargin
         )
     }
+
+    fun calculateSimulation(
+        leaveDates: Set<Long>,
+        holidayDates: Set<Long>,
+        targetThreshold: Double = 75.0
+    ): SimulationResult {
+        val curAttended = total_info?.total_attended ?: 0
+        val curHeld = total_info?.total_held ?: 0
+        val curPct = overallPercentage
+
+        var additionalLeaveHeld = 0
+
+        leaveDates.forEach { millis ->
+            val date = Date(millis)
+            val dayOfWeek = SimpleDateFormat("EEEE", Locale.US).format(date)
+            val dayTt = timetable?.firstOrNull { it.day.equals(dayOfWeek, ignoreCase = true) }
+            val periodCount = dayTt?.classes?.size ?: 6
+            additionalLeaveHeld += periodCount
+        }
+
+        val simAttended = curAttended
+        val simHeld = curHeld + additionalLeaveHeld
+        val simPct = if (simHeld > 0) (simAttended.toDouble() / simHeld.toDouble()) * 100.0 else curPct
+
+        val targetFactor = targetThreshold / 100.0
+
+        val origCanSkip = if (curHeld > 0 && curPct >= targetThreshold) {
+            maxOf(0, kotlin.math.floor((curAttended - targetFactor * curHeld) / targetFactor).toInt())
+        } else 0
+
+        val simCanSkip = if (simHeld > 0 && simPct >= targetThreshold) {
+            maxOf(0, kotlin.math.floor((simAttended - targetFactor * simHeld) / targetFactor).toInt())
+        } else 0
+
+        val origNeed = if (curHeld > 0 && curPct < targetThreshold) {
+            val div = 1.0 - targetFactor
+            if (div > 0) maxOf(0, kotlin.math.ceil((targetFactor * curHeld - curAttended) / div).toInt()) else 0
+        } else 0
+
+        val simNeed = if (simHeld > 0 && simPct < targetThreshold) {
+            val div = 1.0 - targetFactor
+            if (div > 0) maxOf(0, kotlin.math.ceil((targetFactor * simHeld - simAttended) / div).toInt()) else 0
+        } else 0
+
+        return SimulationResult(
+            originalPercentage = curPct,
+            simulatedPercentage = simPct,
+            originalAttended = curAttended,
+            simulatedAttended = simAttended,
+            originalHeld = curHeld,
+            simulatedHeld = simHeld,
+            originalCanSkip = origCanSkip,
+            simulatedCanSkip = simCanSkip,
+            originalNeedToAttend = origNeed,
+            simulatedNeedToAttend = simNeed,
+            addedLeavesCount = leaveDates.size,
+            addedHolidaysCount = holidayDates.size
+        )
+    }
 }
+
+@Serializable
+data class SimulationResult(
+    val originalPercentage: Double = 0.0,
+    val simulatedPercentage: Double = 0.0,
+    val originalAttended: Int = 0,
+    val simulatedAttended: Int = 0,
+    val originalHeld: Int = 0,
+    val simulatedHeld: Int = 0,
+    val originalCanSkip: Int = 0,
+    val simulatedCanSkip: Int = 0,
+    val originalNeedToAttend: Int = 0,
+    val simulatedNeedToAttend: Int = 0,
+    val addedLeavesCount: Int = 0,
+    val addedHolidaysCount: Int = 0
+)
+
 
 @Serializable
 enum class AttendanceStatus {
