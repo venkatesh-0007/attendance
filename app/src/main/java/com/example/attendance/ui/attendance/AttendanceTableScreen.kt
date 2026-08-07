@@ -70,7 +70,21 @@ fun AttendanceTableScreen(
             val rows = cleanTable.rows
 
             val subjectHeader = headers.getOrNull(1) ?: "Subject"
-            val dataHeaders = if (headers.size > 2) headers.subList(2, headers.size) else emptyList()
+            val allDataHeaders = if (headers.size > 2) headers.subList(2, headers.size) else emptyList()
+
+            // Separate Date columns from Summary columns (Atted/Held and %)
+            val summaryHeaderIndices = allDataHeaders.mapIndexedNotNull { idx, h ->
+                val clean = h.trim().lowercase()
+                if (clean.contains("%") || clean.contains("atted") || clean.contains("held")) idx else null
+            }
+
+            val dateHeaders = if (summaryHeaderIndices.isNotEmpty()) {
+                allDataHeaders.filterIndexed { idx, _ -> idx !in summaryHeaderIndices }
+            } else allDataHeaders
+
+            val summaryHeaders = if (summaryHeaderIndices.isNotEmpty()) {
+                allDataHeaders.filterIndexed { idx, _ -> idx in summaryHeaderIndices }
+            } else emptyList()
 
             val lazyListState = rememberLazyListState()
             val horizontalScrollState = rememberScrollState()
@@ -79,17 +93,17 @@ fun AttendanceTableScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .background(Color(0xFF0B0F19))
             ) {
                 // -------------------------------------------------------------
-                // LEFT STICKY COLUMN: Subject Names
+                // 1. LEFT STICKY COLUMN: Subject Names
                 // -------------------------------------------------------------
                 Column(
                     modifier = Modifier
-                        .width(160.dp)
+                        .width(140.dp)
                         .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(Color(0xFF111827))
                 ) {
-                    // Sticky Header Cell
                     GridCell(
                         text = subjectHeader,
                         isHeader = true,
@@ -97,12 +111,11 @@ fun AttendanceTableScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .background(Color(0xFF1F2937))
                     )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = Color(0xFF374151))
 
-                    // Subject Column LazyList
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         state = lazyListState
@@ -118,16 +131,15 @@ fun AttendanceTableScreen(
                                     .fillMaxWidth()
                                     .height(48.dp)
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            HorizontalDivider(color = Color(0xFF1F2937))
                         }
                     }
                 }
 
-                // Vertical Divider separating Sticky Subject column from scrollable grid
-                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                VerticalDivider(color = Color(0xFF374151))
 
                 // -------------------------------------------------------------
-                // RIGHT SCROLLABLE COLUMNS: Dates & Totals
+                // 2. CENTER SCROLLABLE DATA GRID: Date Columns
                 // -------------------------------------------------------------
                 Column(
                     modifier = Modifier
@@ -139,23 +151,21 @@ fun AttendanceTableScreen(
                     Row(
                         modifier = Modifier
                             .height(48.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .background(Color(0xFF1F2937))
                     ) {
-                        dataHeaders.forEach { headerText ->
-                            val cellWidth = getColumnWidth(headerText)
+                        dateHeaders.forEach { headerText ->
                             GridCell(
                                 text = headerText,
                                 isHeader = true,
                                 modifier = Modifier
-                                    .width(cellWidth)
+                                    .width(62.dp)
                                     .fillMaxHeight()
                             )
                         }
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = Color(0xFF374151))
 
-                    // Synchronized Scrollable Data Grid LazyList
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         state = lazyListState
@@ -163,19 +173,75 @@ fun AttendanceTableScreen(
                         items(rows) { row ->
                             val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
                             Row(modifier = Modifier.height(48.dp)) {
-                                dataHeaders.forEachIndexed { colIdx, headerText ->
-                                    val cellText = dataCells.getOrNull(colIdx) ?: ""
-                                    val cellWidth = getColumnWidth(headerText)
+                                dateHeaders.forEachIndexed { dateIdx, _ ->
+                                    val cellText = dataCells.getOrNull(dateIdx) ?: ""
                                     GridCell(
                                         text = cellText,
                                         isHeader = false,
                                         modifier = Modifier
-                                            .width(cellWidth)
+                                            .width(62.dp)
                                             .fillMaxHeight()
                                     )
                                 }
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            HorizontalDivider(color = Color(0xFF1F2937))
+                        }
+                    }
+                }
+
+                // -------------------------------------------------------------
+                // 3. RIGHT STICKY SUMMARY COLUMN: Attended/Held & %
+                // -------------------------------------------------------------
+                if (summaryHeaders.isNotEmpty()) {
+                    VerticalDivider(color = Color(0xFF374151))
+
+                    Column(
+                        modifier = Modifier
+                            .width(135.dp)
+                            .fillMaxHeight()
+                            .background(Color(0xFF111827))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .height(48.dp)
+                                .background(Color(0xFF1F2937))
+                        ) {
+                            summaryHeaders.forEach { hText ->
+                                val w = if (hText.contains("%")) 55.dp else 80.dp
+                                GridCell(
+                                    text = hText,
+                                    isHeader = true,
+                                    modifier = Modifier
+                                        .width(w)
+                                        .fillMaxHeight()
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = Color(0xFF374151))
+
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            state = lazyListState
+                        ) {
+                            items(rows) { row ->
+                                val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
+                                Row(modifier = Modifier.height(48.dp)) {
+                                    summaryHeaderIndices.forEach { sumColIdx ->
+                                        val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
+                                        val cellText = dataCells.getOrNull(sumColIdx) ?: ""
+                                        val w = if (hText.contains("%")) 55.dp else 80.dp
+                                        GridCell(
+                                            text = cellText,
+                                            isHeader = false,
+                                            modifier = Modifier
+                                                .width(w)
+                                                .fillMaxHeight()
+                                        )
+                                    }
+                                }
+                                HorizontalDivider(color = Color(0xFF1F2937))
+                            }
                         }
                     }
                 }
@@ -187,9 +253,8 @@ fun AttendanceTableScreen(
 private fun getColumnWidth(headerText: String): Dp {
     val clean = headerText.trim().lowercase()
     return when {
-        clean.contains("held") || clean.contains("atted") -> 100.dp
-        clean.contains("%") -> 70.dp
-        clean.contains("/") -> 65.dp
+        clean.contains("held") || clean.contains("atted") -> 85.dp
+        clean.contains("%") -> 60.dp
         else -> 60.dp
     }
 }
@@ -202,48 +267,30 @@ private fun GridCell(
     alignStart: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val darkTheme = isSystemInDarkTheme()
     val trimmed = text.trim()
 
-    // Determine status colors for Dark and Light themes
     val (bgColor, textColor) = when {
         isHeader -> Pair(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.onPrimaryContainer
+            Color(0xFF1F2937),
+            Color(0xFFF3F4F6)
         )
         isSubjectName -> Pair(
             Color.Transparent,
-            MaterialTheme.colorScheme.onSurface
+            Color(0xFFE5E7EB)
         )
-        trimmed.startsWith("P") -> if (darkTheme) {
-            Pair(Color(0xFF1B4D2E), Color(0xFF81C784))
-        } else {
-            Pair(Color(0xFFE8F5E9), Color(0xFF2E7D32))
-        }
-        trimmed.startsWith("A") -> if (darkTheme) {
-            Pair(Color(0xFF4A1C1C), Color(0xFFE57373))
-        } else {
-            Pair(Color(0xFFFFEBEE), Color(0xFFC62828))
-        }
-        trimmed.startsWith("H") -> if (darkTheme) {
-            Pair(Color(0xFF1A365D), Color(0xFF64B5F6))
-        } else {
-            Pair(Color(0xFFE3F2FD), Color(0xFF1565C0))
-        }
-        trimmed.startsWith("L") -> if (darkTheme) {
-            Pair(Color(0xFF3B1E54), Color(0xFFBA68C8))
-        } else {
-            Pair(Color(0xFFF3E5F5), Color(0xFF6A1B9A))
-        }
+        trimmed.startsWith("P") -> Pair(Color(0xFF143823), Color(0xFF00FF87))
+        trimmed.startsWith("A") -> Pair(Color(0xFF3F1717), Color(0xFFFF5252))
+        trimmed.startsWith("H") -> Pair(Color(0xFF17253F), Color(0xFF40C4FF))
+        trimmed.startsWith("L") -> Pair(Color(0xFF2E173F), Color(0xFFE040FB))
         trimmed.toDoubleOrNull() != null -> {
             val pct = trimmed.toDouble()
             if (pct >= 75.0) {
-                Pair(Color.Transparent, if (darkTheme) Color(0xFF81C784) else Color(0xFF2E7D32))
+                Pair(Color.Transparent, Color(0xFF00FF87))
             } else {
-                Pair(Color.Transparent, if (darkTheme) Color(0xFFE57373) else Color(0xFFC62828))
+                Pair(Color.Transparent, Color(0xFFFF5252))
             }
         }
-        else -> Pair(Color.Transparent, MaterialTheme.colorScheme.onSurface)
+        else -> Pair(Color.Transparent, Color(0xFF9CA3AF))
     }
 
     Surface(
@@ -253,12 +300,12 @@ private fun GridCell(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = 4.dp, vertical = 2.dp),
             contentAlignment = if (alignStart) Alignment.CenterStart else Alignment.Center
         ) {
             Text(
                 text = trimmed,
-                fontWeight = if (isHeader || trimmed.toDoubleOrNull() != null) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (isHeader || trimmed.toDoubleOrNull() != null || trimmed.startsWith("P") || trimmed.startsWith("A")) FontWeight.Bold else FontWeight.Normal,
                 fontSize = if (isSubjectName) 11.sp else 12.sp,
                 color = textColor,
                 textAlign = if (alignStart) TextAlign.Start else TextAlign.Center,
@@ -268,3 +315,4 @@ private fun GridCell(
         }
     }
 }
+
