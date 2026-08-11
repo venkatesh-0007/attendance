@@ -261,9 +261,9 @@ class DashboardWidget : GlanceAppWidget() {
                             }
                         }
 
-                        Spacer(modifier = GlanceModifier.width(16.dp))
+                        Spacer(modifier = GlanceModifier.width(12.dp))
 
-                        // Right: Info items (Presents, Absents, and target margin)
+                        // Right: Info items (Presents, Absents, Skip Periods, and Target Margin)
                         Column(
                             modifier = GlanceModifier.defaultWeight(),
                             verticalAlignment = Alignment.CenterVertically
@@ -280,10 +280,17 @@ class DashboardWidget : GlanceAppWidget() {
                             
                             Row(modifier = GlanceModifier.fillMaxWidth()) {
                                 InfoItemWidget("Presents", "${state.attendedClasses}", isDark, onSurfaceColor)
-                                Spacer(modifier = GlanceModifier.width(12.dp))
+                                Spacer(modifier = GlanceModifier.width(10.dp))
                                 val absents = state.heldClasses - state.attendedClasses
                                 val absColor = if (absents > 0) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
                                 InfoItemWidget("Absents", "$absents", isDark, absColor)
+                                Spacer(modifier = GlanceModifier.width(10.dp))
+
+                                val isCanSkip = !isCritical && state.periodsCanSkip > 0
+                                val predLabel = if (isCanSkip) "Can Skip" else "Need Attend"
+                                val predValue = if (isCanSkip) "${state.periodsCanSkip} Pds" else "${state.periodsNeedToAttend} Pds"
+                                val predColor = if (isCanSkip) onSurfaceColor else (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
+                                InfoItemWidget(predLabel, predValue, isDark, predColor)
                             }
                             
                             if (state.targetMargin.isNotEmpty()) {
@@ -301,134 +308,36 @@ class DashboardWidget : GlanceAppWidget() {
                     }
                 }
 
-                Spacer(modifier = GlanceModifier.height(8.dp))
+                Spacer(modifier = GlanceModifier.height(10.dp))
 
-                // 2. MIDDLE ROW: Prediction (Periods to Skip) & Today's Summary
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top
+                // 2. TODAY'S ATTENDANCE CARD (Sequence Chips)
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .background(ColorProvider(cardBg))
+                        .cornerRadius(20.dp)
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .clickable(createTargetAction("TODAYS_REGISTER"))
                 ) {
-                    // Prediction Pill (Skip / Attend)
-                    val isCanSkip = !isCritical && state.periodsCanSkip > 0
-                    val predBg = if (isCanSkip) {
-                        if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
-                    } else {
-                        if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
-                    }
-                    val predText = if (isCanSkip) onSurfaceColor else (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
-                    val predTitle = if (isCanSkip) "Can Skip" else "Need Attend"
-                    val predSubtitle = if (isCanSkip) "${state.periodsCanSkip} Periods" else "${state.periodsNeedToAttend} Periods"
-
-                    Box(
-                        modifier = GlanceModifier
-                            .defaultWeight()
-                            .background(ColorProvider(predBg))
-                            .cornerRadius(16.dp)
-                            .padding(10.dp)
-                            .clickable(createTargetAction("PREDICTION")),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(modifier = GlanceModifier.fillMaxWidth()) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = predTitle,
-                                    style = TextStyle(
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ColorProvider(predText)
-                                    )
-                                )
-                            }
-                            Spacer(modifier = GlanceModifier.height(4.dp))
-                            Text(
-                                text = predSubtitle,
-                                style = TextStyle(
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ColorProvider(predText)
-                                )
+                    Column(modifier = GlanceModifier.fillMaxWidth()) {
+                        Text(
+                            text = "Today's Attendance",
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(onSurfaceColor)
                             )
-                        }
-                    }
-
-                    Spacer(modifier = GlanceModifier.width(8.dp))
-
-                    // Today's Status (Presents & Absents count matching app scheduled timeline!)
-                    Box(
-                        modifier = GlanceModifier
-                            .defaultWeight()
-                            .background(ColorProvider(cardBg))
-                            .cornerRadius(16.dp)
-                            .padding(10.dp)
-                            .clickable(createTargetAction("TODAYS_REGISTER")),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(modifier = GlanceModifier.fillMaxWidth()) {
+                        )
+                        Spacer(modifier = GlanceModifier.height(8.dp))
+                        if (state.todayAttendanceTimeline.isEmpty()) {
                             Text(
-                                text = "Today's Attendance",
+                                text = "No classes",
                                 style = TextStyle(
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
                                     color = ColorProvider(onSurfaceVariantColor)
                                 )
                             )
-                            Spacer(modifier = GlanceModifier.height(4.dp))
-                            if (state.todayAttendanceTimeline.isEmpty()) {
-                                Text(
-                                    text = "No classes",
-                                    style = TextStyle(
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ColorProvider(onSurfaceColor)
-                                    )
-                                )
-                            } else {
-                                val timeline = state.todayAttendanceTimeline
-                                val presentCount = timeline.count { it == AttendanceStatus.PRESENT }
-                                val absentCount = timeline.count { it == AttendanceStatus.ABSENT }
-                                val pendingCount = timeline.count { it == AttendanceStatus.UPCOMING }
-
-                                val displayStr = buildString {
-                                    append("$presentCount Pres, $absentCount Abs")
-                                    if (pendingCount > 0) {
-                                        append(" ($pendingCount Pend)")
-                                    }
-                                }
-
-                                Text(
-                                    text = displayStr,
-                                    style = TextStyle(
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ColorProvider(onSurfaceColor)
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 3. TODAY'S ATTENDANCE SEQUENCE CHIPS (e.g. P P A A P P P)
-                if (state.todayAttendanceTimeline.isNotEmpty()) {
-                    Spacer(modifier = GlanceModifier.height(8.dp))
-                    Box(
-                        modifier = GlanceModifier
-                            .fillMaxWidth()
-                            .background(ColorProvider(cardBg))
-                            .cornerRadius(16.dp)
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(createTargetAction("TODAYS_REGISTER"))
-                    ) {
-                        Column(modifier = GlanceModifier.fillMaxWidth()) {
-                            Text(
-                                text = "Today's Attendance",
-                                style = TextStyle(
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ColorProvider(onSurfaceVariantColor)
-                                )
-                            )
-                            Spacer(modifier = GlanceModifier.height(6.dp))
+                        } else {
                             Row(
                                 modifier = GlanceModifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -436,12 +345,12 @@ class DashboardWidget : GlanceAppWidget() {
                                 val timeline = state.todayAttendanceTimeline
                                 val totalCount = timeline.size
                                 val chipSizeDp = when {
-                                    totalCount >= 8 -> 16
-                                    totalCount >= 7 -> 18
-                                    totalCount >= 6 -> 20
-                                    else -> 22
+                                    totalCount >= 8 -> 18
+                                    totalCount >= 7 -> 20
+                                    totalCount >= 6 -> 22
+                                    else -> 24
                                 }
-                                val periodFontSize = if (totalCount >= 7) 7.sp else 8.sp
+                                val periodFontSize = if (totalCount >= 7) 8.sp else 9.sp
                                 val chipFontSize = if (totalCount >= 7) 9.sp else 10.sp
 
                                 timeline.forEachIndexed { index, status ->
