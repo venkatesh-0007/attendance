@@ -64,8 +64,8 @@ class SettingsViewModel @Inject constructor(
     var savedAccounts by mutableStateOf(repository.getSavedAccounts())
         private set
 
-    val currentStudentId: String?
-        get() = prefs.studentId
+    var currentStudentId by mutableStateOf(prefs.studentId)
+        private set
 
     val attendanceStateFlow = repository.attendance
 
@@ -109,18 +109,24 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun switchAccount(studentId: String) {
+    fun switchAccount(studentId: String, context: Context) {
         repository.switchAccount(studentId)
+        currentStudentId = prefs.studentId
+        savedAccounts = repository.getSavedAccounts()
+        refreshWidgets(context)
     }
 
-    fun removeAccount(studentId: String) {
+    fun removeAccount(studentId: String, context: Context) {
         repository.removeAccount(studentId)
         savedAccounts = repository.getSavedAccounts()
+        currentStudentId = prefs.studentId
+        refreshWidgets(context)
     }
 
-    fun updateAccountCustomName(studentId: String, customName: String) {
+    fun updateAccountCustomName(studentId: String, customName: String, context: Context) {
         repository.updateAccountCustomName(studentId, customName)
         savedAccounts = repository.getSavedAccounts()
+        refreshWidgets(context)
     }
 
     fun logout() {
@@ -178,7 +184,7 @@ fun SettingsScreen(
             account = accountToEdit,
             onDismiss = { editingAccountForName = null },
             onConfirm = { newCustomName ->
-                viewModel.updateAccountCustomName(accountToEdit.studentId, newCustomName)
+                viewModel.updateAccountCustomName(accountToEdit.studentId, newCustomName, context)
                 editingAccountForName = null
             }
         )
@@ -211,7 +217,8 @@ fun SettingsScreen(
             // 1. ACTIVE PROFILE HEADER
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                val studentName = attendanceState?.student_name ?: "Student"
+                val activeAccount = viewModel.savedAccounts.find { it.studentId == viewModel.currentStudentId }
+                val studentName = activeAccount?.displayName ?: attendanceState?.student_name ?: "Account (${viewModel.currentStudentId ?: "N/A"})"
                 val rawRoll = attendanceState?.roll_number ?: viewModel.currentStudentId ?: "N/A"
                 val rollNumber = rawRoll.trim().removePrefix(":").trim()
                 val firstLetter = studentName.trim().take(1).uppercase()
@@ -295,9 +302,9 @@ fun SettingsScreen(
                             AccountItem(
                                 account = account,
                                 isCurrent = isCurrent,
-                                onSwitch = { viewModel.switchAccount(account.studentId) },
+                                onSwitch = { viewModel.switchAccount(account.studentId, context) },
                                 onEditName = { editingAccountForName = account },
-                                onRemove = { viewModel.removeAccount(account.studentId) }
+                                onRemove = { viewModel.removeAccount(account.studentId, context) }
                             )
                         }
 

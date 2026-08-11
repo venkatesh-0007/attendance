@@ -23,38 +23,46 @@ class SyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val studentId = prefs.studentId
-        val password = prefs.password
-
-        if (studentId.isNullOrBlank() || password.isNullOrBlank()) {
-            return@withContext Result.failure()
-        }
-
         if (!isNetworkAvailable()) {
             return@withContext Result.retry()
         }
 
-        val result = repository.fetchAttendance(studentId, password)
-        if (result.isSuccess) {
-            val response = result.getOrNull()
-            response?.overallPercentage?.let { percentage ->
-                val threshold = prefs.notificationThreshold
-                if (percentage < threshold) {
-                    NotificationHelper.showLowAttendanceNotification(context, percentage, threshold)
+        val accounts = repository.getSavedAccounts()
+        val accountsToSync = if (accounts.isNotEmpty()) accounts else {
+            val id = prefs.studentId
+            val pass = prefs.password
+            if (!id.isNullOrBlank() && !pass.isNullOrBlank()) {
+                listOf(com.example.attendance.data.model.UserAccount(id, pass))
+            } else emptyList()
+        }
+
+        if (accountsToSync.isEmpty()) {
+            return@withContext Result.failure()
+        }
+
+        var anySuccess = false
+        for (account in accountsToSync) {
+            val result = repository.fetchAttendance(account.studentId, account.password)
+            if (result.isSuccess) {
+                anySuccess = true
+                val response = result.getOrNull()
+                response?.overallPercentage?.let { percentage ->
+                    val threshold = prefs.notificationThreshold
+                    if (percentage < threshold && account.studentId == prefs.studentId) {
+                        NotificationHelper.showLowAttendanceNotification(context, percentage, threshold)
+                    }
                 }
             }
-
-            // Trigger updates across all home screen widgets
-            try {
-                com.example.attendance.widget.WidgetUpdater.updateAll(context)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
-            Result.success()
-        } else {
-            Result.retry()
         }
+
+        // Trigger updates across all home screen widgets
+        try {
+            com.example.attendance.widget.WidgetUpdater.updateAll(context)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        if (anySuccess) Result.success() else Result.retry()
     }
 
     private fun isNetworkAvailable(): Boolean {
