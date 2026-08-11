@@ -56,6 +56,13 @@ class DashboardViewModel @Inject constructor(
     val notificationThreshold: Int
         get() = prefs.notificationThreshold
 
+    val currentAccountName: String?
+        get() {
+            val id = prefs.studentId ?: return null
+            val account = repository.getSavedAccounts().find { it.studentId == id }
+            return account?.displayName ?: attendance.value?.student_name ?: attendance.value?.roll_number
+        }
+
     fun refresh() {
         val studentId = prefs.studentId ?: return
         val password = prefs.password ?: return
@@ -101,7 +108,7 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                        attendanceState?.student_name?.let {
+                        viewModel.currentAccountName?.let {
                             Text(
                                 it,
                                 style = MaterialTheme.typography.bodyMedium,

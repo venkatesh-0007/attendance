@@ -10,5 +10,6 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
+    android:configure="com.example.attendance.widget.WidgetConfigureActivity"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

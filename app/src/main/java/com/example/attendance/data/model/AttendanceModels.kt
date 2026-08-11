@@ -256,7 +256,11 @@ data class AttendanceResponse(
 
 
 
-    fun toWidgetState(targetThreshold: Double = 75.0, lastUpdatedMillis: Long = System.currentTimeMillis()): AttendanceWidgetState {
+    fun toWidgetState(
+        targetThreshold: Double = 75.0,
+        lastUpdatedMillis: Long = System.currentTimeMillis(),
+        customName: String? = null
+    ): AttendanceWidgetState {
         val percentage = overallPercentage
         val status = when {
             percentage >= targetThreshold -> OverallAttendanceStatus.SAFE
@@ -298,6 +302,13 @@ data class AttendanceResponse(
             String.format(Locale.getDefault(), "%.2f%% vs target", diff)
         }
 
+        val nameToUse = when {
+            !customName.isNullOrBlank() -> customName
+            !student_name.isNullOrBlank() -> student_name
+            !roll_number.isNullOrBlank() -> roll_number
+            else -> "Account"
+        }
+
         return AttendanceWidgetState(
             attendancePercentage = percentage,
             attendanceStatus = status,
@@ -307,7 +318,7 @@ data class AttendanceResponse(
             attendedClasses = attended,
             heldClasses = held,
             lastUpdated = lastUpdatedStr,
-            studentName = student_name ?: "",
+            studentName = nameToUse,
             targetMargin = targetMargin
         )
     }

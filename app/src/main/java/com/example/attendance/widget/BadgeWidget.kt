@@ -51,11 +51,22 @@ class BadgeWidget : GlanceAppWidget() {
         provideContent {
             val widgetPrefs = currentState<Preferences>()
             val isRefreshing = widgetPrefs[isRefreshingKey] ?: false
-
             val securePrefs = remember { SecurePreferences(context) }
-            val studentIdToLoad = securePrefs.studentId
+            val selectedStudentId = widgetPrefs[SELECTED_STUDENT_ID_KEY] ?: securePrefs.studentId
             val json = remember { Json { ignoreUnknownKeys = true } }
-            val cachedJson = studentIdToLoad?.let { securePrefs.getAttendanceCache(it) }
+            val cachedJson = selectedStudentId?.let { securePrefs.getAttendanceCache(it) }
+
+            val savedAccountsJson = securePrefs.accountsJson
+            val savedAccount = remember(savedAccountsJson, selectedStudentId) {
+                if (!savedAccountsJson.isNullOrBlank() && selectedStudentId != null) {
+                    try {
+                        val list = json.decodeFromString<List<com.example.attendance.data.model.UserAccount>>(savedAccountsJson)
+                        list.find { it.studentId == selectedStudentId }
+                    } catch (_: Exception) { null }
+                } else null
+            }
+
+            val displayName = savedAccount?.displayName
 
             val response: AttendanceResponse? = remember(cachedJson) {
                 cachedJson?.let {
@@ -67,8 +78,12 @@ class BadgeWidget : GlanceAppWidget() {
                 }
             }
 
-            val widgetState: AttendanceWidgetState? = remember(response, securePrefs.lastUpdated) {
-                response?.toWidgetState(securePrefs.notificationThreshold.toDouble(), securePrefs.lastUpdated)
+            val widgetState: AttendanceWidgetState? = remember(response, securePrefs.lastUpdated, displayName) {
+                response?.toWidgetState(
+                    targetThreshold = securePrefs.notificationThreshold.toDouble(),
+                    lastUpdatedMillis = securePrefs.lastUpdated,
+                    customName = displayName
+                )
             }
 
             val darkMode = securePrefs.darkMode
