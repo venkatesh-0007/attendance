@@ -103,65 +103,23 @@ class AttendanceWidget : GlanceAppWidget() {
             .fillMaxSize()
             .appWidgetBackground()
             .background(ColorProvider(surfaceBg))
-            .cornerRadius(18.dp)
-            .padding(10.dp)
+            .cornerRadius(20.dp)
+            .padding(14.dp)
 
         Column(
             modifier = rootModifier,
             verticalAlignment = Alignment.Top,
             horizontalAlignment = Alignment.Start
         ) {
-            // Header Row: Title & Fixed Refresh Box
-            Row(
-                modifier = GlanceModifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Attendance",
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ColorProvider(onSurfaceColor)
-                    ),
-                    modifier = GlanceModifier.defaultWeight()
-                )
-
-                Box(
-                    modifier = GlanceModifier
-                        .size(24.dp)
-                        .clickable(actionRunCallback<AttendanceRefreshCallback>()),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isRefreshing) {
-                        CircularProgressIndicator(
-                            color = ColorProvider(onSurfaceColor),
-                            modifier = GlanceModifier.size(14.dp)
-                        )
-                    } else {
-                        Text(
-                            text = "↻",
-                            style = TextStyle(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(onSurfaceColor),
-                                textAlign = TextAlign.Center
-                            )
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = GlanceModifier.height(4.dp))
-
             if (state == null) {
                 Box(
-                    modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
+                    modifier = GlanceModifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = if (isRefreshing) "Refreshing..." else "Tap to login",
                         style = TextStyle(
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = ColorProvider(onSurfaceVariantColor),
                             textAlign = TextAlign.Center
                         ),
@@ -172,118 +130,110 @@ class AttendanceWidget : GlanceAppWidget() {
                 val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
                 val statusColor = if (isCritical) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
 
-                // Middle split layout (Gauge left, metrics stack right)
+                // 1. Present Attendance Percentage & Refresh Button Row
                 Row(
-                    modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
+                    modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Column: Gauge
-                    Box(
-                        modifier = GlanceModifier
-                            .size(60.dp)
-                            .clickable(createTargetAction("DASHBOARD")),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
                     ) {
-                        val threshold = securePrefs.notificationThreshold
-                        val gaugeBitmap = remember(state.attendancePercentage, isDark) {
-                            createCircularGaugeBitmap(
-                                percentage = state.attendancePercentage,
-                                threshold = threshold,
-                                isDark = isDark
+                        Text(
+                            text = "Attendance",
+                            style = TextStyle(
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(onSurfaceVariantColor)
                             )
-                        }
-                        Image(
-                            provider = ImageProvider(gaugeBitmap),
-                            contentDescription = "Gauge",
-                            modifier = GlanceModifier.size(60.dp)
                         )
+                        Spacer(modifier = GlanceModifier.height(2.dp))
                         Text(
                             text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
                             style = TextStyle(
-                                fontSize = 11.sp,
+                                fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ColorProvider(statusColor)
                             )
                         )
                     }
 
-                    Spacer(modifier = GlanceModifier.width(10.dp))
-
-                    // Right Column: Predictions & Today Summary Counts
-                    Column(
-                        modifier = GlanceModifier.defaultWeight(),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Refresh Button
+                    Box(
+                        modifier = GlanceModifier
+                            .size(24.dp)
+                            .clickable(actionRunCallback<AttendanceRefreshCallback>()),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Prediction Chip
-                        val isCanSkip = !isCritical && state.periodsCanSkip > 0
-                        val cardBg = if (isCanSkip) {
-                            if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
-                        } else {
-                            if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
-                        }
-                        val cardTextAccent = if (isCanSkip) onSurfaceColor else (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
-                        val cardLabel = if (isCanSkip) "Skip ${state.periodsCanSkip}" else "Attend ${state.periodsNeedToAttend}"
-
-                        Box(
-                            modifier = GlanceModifier
-                                .background(ColorProvider(cardBg))
-                                .cornerRadius(8.dp)
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
-                                .clickable(createTargetAction("PREDICTION")),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = cardLabel,
-                                style = TextStyle(
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ColorProvider(cardTextAccent)
-                                )
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                color = ColorProvider(onSurfaceColor),
+                                modifier = GlanceModifier.size(14.dp)
                             )
-                        }
-
-                        Spacer(modifier = GlanceModifier.height(4.dp))
-
-                        // Today text status count
-                        if (state.todayAttendanceTimeline.isNotEmpty()) {
-                            val timeline = state.todayAttendanceTimeline
-                            val presentCount = timeline.count { it == AttendanceStatus.PRESENT }
-                            val absentCount = timeline.count { it == AttendanceStatus.ABSENT }
-                            val pendingCount = timeline.count { it == AttendanceStatus.UPCOMING }
-
-                            val displayStr = buildString {
-                                append("${presentCount}P ${absentCount}A")
-                                if (pendingCount > 0) {
-                                      append(" ${pendingCount}Pnd")
-                                }
-                            }
-
+                        } else {
                             Text(
-                                text = displayStr,
+                                text = "↻",
                                 style = TextStyle(
-                                    fontSize = 9.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = ColorProvider(onSurfaceColor)
+                                    color = ColorProvider(onSurfaceVariantColor),
+                                    textAlign = TextAlign.Center
                                 )
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = GlanceModifier.height(4.dp))
+                // 2. Periods Can Skip Badge
+                val isCanSkip = !isCritical && state.periodsCanSkip > 0
+                val skipBg = if (isCanSkip) {
+                    if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
+                } else {
+                    if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
+                }
+                val skipText = if (isCanSkip) onSurfaceColor else (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
+                val skipLabel = if (isCanSkip) "Skip: ${state.periodsCanSkip} periods" else "Attend: ${state.periodsNeedToAttend} periods"
 
-                // Bottom row: Today's Sequence
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .background(ColorProvider(skipBg))
+                        .cornerRadius(10.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .clickable(createTargetAction("PREDICTION")),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = skipLabel,
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(skipText)
+                        )
+                    )
+                }
+
+                // 3. Today's Attendance Sequence (e.g. PPPPPPP)
                 Column(
                     modifier = GlanceModifier
                         .fillMaxWidth()
                         .clickable(createTargetAction("TODAYS_REGISTER"))
                 ) {
+                    Text(
+                        text = "Today",
+                        style = TextStyle(
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(onSurfaceVariantColor)
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.height(4.dp))
                     if (state.todayAttendanceTimeline.isEmpty()) {
                         Text(
-                            text = "No classes today",
+                            text = "No classes",
                             style = TextStyle(
-                                fontSize = 10.sp,
-                                color = ColorProvider(onSurfaceVariantColor)
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(onSurfaceColor)
                             )
                         )
                     } else {
@@ -291,10 +241,10 @@ class AttendanceWidget : GlanceAppWidget() {
                             modifier = GlanceModifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            state.todayAttendanceTimeline.take(7).forEachIndexed { index, status ->
+                            state.todayAttendanceTimeline.take(8).forEachIndexed { index, status ->
                                 CompactChip(status = status, isDark = isDark)
-                                if (index < state.todayAttendanceTimeline.size - 1 && index < 6) {
-                                    Spacer(modifier = GlanceModifier.width(2.dp))
+                                if (index < state.todayAttendanceTimeline.size - 1 && index < 7) {
+                                    Spacer(modifier = GlanceModifier.width(3.dp))
                                 }
                             }
                         }
@@ -302,47 +252,6 @@ class AttendanceWidget : GlanceAppWidget() {
                 }
             }
         }
-    }
-
-    private fun createCircularGaugeBitmap(
-        percentage: Double,
-        threshold: Int,
-        isDark: Boolean
-    ): Bitmap {
-        val sizePx = 200
-        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        
-        val strokeWidth = 16f
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.ROUND
-            this.strokeWidth = strokeWidth
-        }
-        
-        val rect = RectF(
-            strokeWidth / 2f + 4f,
-            strokeWidth / 2f + 4f,
-            sizePx - strokeWidth / 2f - 4f,
-            sizePx - strokeWidth / 2f - 4f
-        )
-        
-        // 1. Draw track
-        val trackColor = if (isDark) 0xFF27272A.toInt() else 0xFFE4E4E7.toInt()
-        paint.color = trackColor
-        canvas.drawArc(rect, 0f, 360f, false, paint)
-        
-        // 2. Draw active progress
-        val indicatorColor = if (percentage >= threshold) {
-            if (isDark) 0xFFFAFAFA.toInt() else 0xFF09090B.toInt()
-        } else {
-            if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt()
-        }
-        paint.color = indicatorColor
-        val sweepAngle = ((percentage / 100.0) * 360.0).coerceIn(0.0, 360.0).toFloat()
-        canvas.drawArc(rect, -90f, sweepAngle, false, paint)
-        
-        return bitmap
     }
 
     @Composable
@@ -377,15 +286,15 @@ class AttendanceWidget : GlanceAppWidget() {
 
         Box(
             modifier = GlanceModifier
-                .size(13.dp)
+                .size(16.dp)
                 .background(ColorProvider(bg))
-                .cornerRadius(3.dp),
+                .cornerRadius(4.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = symbol,
                 style = TextStyle(
-                    fontSize = 7.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     color = ColorProvider(textColor),
                     textAlign = TextAlign.Center
