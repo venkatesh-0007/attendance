@@ -433,10 +433,30 @@ class DashboardWidget : GlanceAppWidget() {
                                 modifier = GlanceModifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                state.todayAttendanceTimeline.forEachIndexed { index, status ->
-                                    NumberedTimelineChip(periodNum = index + 1, status = status, isDark = isDark)
-                                    if (index < state.todayAttendanceTimeline.size - 1) {
-                                        Spacer(modifier = GlanceModifier.width(4.dp))
+                                val timeline = state.todayAttendanceTimeline
+                                val totalCount = timeline.size
+                                val chipSizeDp = when {
+                                    totalCount >= 8 -> 16
+                                    totalCount >= 7 -> 18
+                                    totalCount >= 6 -> 20
+                                    else -> 22
+                                }
+                                val periodFontSize = if (totalCount >= 7) 7.sp else 8.sp
+                                val chipFontSize = if (totalCount >= 7) 9.sp else 10.sp
+
+                                timeline.forEachIndexed { index, status ->
+                                    Box(
+                                        modifier = GlanceModifier.defaultWeight(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        NumberedTimelineChip(
+                                            periodNum = index + 1,
+                                            status = status,
+                                            isDark = isDark,
+                                            chipSizeDp = chipSizeDp,
+                                            periodFontSize = periodFontSize,
+                                            chipFontSize = chipFontSize
+                                        )
                                     }
                                 }
                             }
@@ -511,7 +531,14 @@ class DashboardWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun NumberedTimelineChip(periodNum: Int, status: AttendanceStatus, isDark: Boolean) {
+    private fun NumberedTimelineChip(
+        periodNum: Int,
+        status: AttendanceStatus,
+        isDark: Boolean,
+        chipSizeDp: Int = 22,
+        periodFontSize: androidx.compose.ui.unit.TextUnit = 8.sp,
+        chipFontSize: androidx.compose.ui.unit.TextUnit = 10.sp
+    ) {
         val (bg, textColor, symbol) = when (status) {
             AttendanceStatus.PRESENT -> Triple(
                 if (isDark) Color(0xFF27272A) else Color(0xFFE4E4E7),
@@ -548,14 +575,14 @@ class DashboardWidget : GlanceAppWidget() {
             Text(
                 text = "P$periodNum",
                 style = TextStyle(
-                    fontSize = 8.sp,
+                    fontSize = periodFontSize,
                     color = ColorProvider(onSurfaceVariantColor)
                 )
             )
             Spacer(modifier = GlanceModifier.height(2.dp))
             Box(
                 modifier = GlanceModifier
-                    .size(22.dp)
+                    .size(chipSizeDp.dp)
                     .background(ColorProvider(bg))
                     .cornerRadius(6.dp),
                 contentAlignment = Alignment.Center
@@ -563,7 +590,7 @@ class DashboardWidget : GlanceAppWidget() {
                 Text(
                     text = symbol,
                     style = TextStyle(
-                        fontSize = 10.sp,
+                        fontSize = chipFontSize,
                         fontWeight = FontWeight.Bold,
                         color = ColorProvider(textColor),
                         textAlign = TextAlign.Center

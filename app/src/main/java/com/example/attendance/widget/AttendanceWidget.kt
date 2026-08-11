@@ -241,10 +241,27 @@ class AttendanceWidget : GlanceAppWidget() {
                             modifier = GlanceModifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            state.todayAttendanceTimeline.take(8).forEachIndexed { index, status ->
-                                CompactChip(status = status, isDark = isDark)
-                                if (index < state.todayAttendanceTimeline.size - 1 && index < 7) {
-                                    Spacer(modifier = GlanceModifier.width(3.dp))
+                            val timeline = state.todayAttendanceTimeline
+                            val totalCount = timeline.size
+                            val chipSizeDp = when {
+                                totalCount >= 8 -> 12
+                                totalCount >= 7 -> 14
+                                totalCount >= 6 -> 15
+                                else -> 16
+                            }
+                            val fontSize = if (totalCount >= 7) 8.sp else 9.sp
+
+                            timeline.forEachIndexed { index, status ->
+                                Box(
+                                    modifier = GlanceModifier.defaultWeight(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CompactChip(
+                                        status = status,
+                                        isDark = isDark,
+                                        chipSizeDp = chipSizeDp,
+                                        fontSize = fontSize
+                                    )
                                 }
                             }
                         }
@@ -255,7 +272,12 @@ class AttendanceWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun CompactChip(status: AttendanceStatus, isDark: Boolean) {
+    private fun CompactChip(
+        status: AttendanceStatus,
+        isDark: Boolean,
+        chipSizeDp: Int = 16,
+        fontSize: androidx.compose.ui.unit.TextUnit = 9.sp
+    ) {
         val (bg, textColor, symbol) = when (status) {
             AttendanceStatus.PRESENT -> Triple(
                 if (isDark) Color(0xFF27272A) else Color(0xFFE4E4E7),
@@ -286,7 +308,7 @@ class AttendanceWidget : GlanceAppWidget() {
 
         Box(
             modifier = GlanceModifier
-                .size(16.dp)
+                .size(chipSizeDp.dp)
                 .background(ColorProvider(bg))
                 .cornerRadius(4.dp),
             contentAlignment = Alignment.Center
@@ -294,7 +316,7 @@ class AttendanceWidget : GlanceAppWidget() {
             Text(
                 text = symbol,
                 style = TextStyle(
-                    fontSize = 9.sp,
+                    fontSize = fontSize,
                     fontWeight = FontWeight.Bold,
                     color = ColorProvider(textColor),
                     textAlign = TextAlign.Center
