@@ -96,11 +96,11 @@ fun AttendanceTableScreen(
                     .background(Color(0xFF0B0F19))
             ) {
                 // -------------------------------------------------------------
-                // 1. LEFT STICKY COLUMN: Subject Names
+                // 1. LEFT STICKY COLUMN: Subject Names (Smaller 100.dp, fixed to screen)
                 // -------------------------------------------------------------
                 Column(
                     modifier = Modifier
-                        .width(140.dp)
+                        .width(100.dp)
                         .fillMaxHeight()
                         .background(Color(0xFF111827))
                 ) {
@@ -139,7 +139,8 @@ fun AttendanceTableScreen(
                 VerticalDivider(color = Color(0xFF374151))
 
                 // -------------------------------------------------------------
-                // 2. CENTER SCROLLABLE DATA GRID: Date Columns
+                // 2. HORIZONTALLY SCROLLABLE DATA GRID (Dates + Atted/Held & %)
+                // Spans from 100.dp to the right edge of the screen!
                 // -------------------------------------------------------------
                 Column(
                     modifier = Modifier
@@ -147,7 +148,7 @@ fun AttendanceTableScreen(
                         .fillMaxHeight()
                         .horizontalScroll(horizontalScrollState)
                 ) {
-                    // Header Row
+                    // Header Row: Date Headers followed by Summary Headers
                     Row(
                         modifier = Modifier
                             .height(48.dp)
@@ -162,10 +163,21 @@ fun AttendanceTableScreen(
                                     .fillMaxHeight()
                             )
                         }
+                        summaryHeaders.forEach { hText ->
+                            val w = if (hText.contains("%")) 65.dp else 85.dp
+                            GridCell(
+                                text = hText,
+                                isHeader = true,
+                                modifier = Modifier
+                                    .width(w)
+                                    .fillMaxHeight()
+                            )
+                        }
                     }
 
                     HorizontalDivider(color = Color(0xFF374151))
 
+                    // LazyColumn for Data Rows
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         state = lazyListState
@@ -173,6 +185,7 @@ fun AttendanceTableScreen(
                         items(rows) { row ->
                             val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
                             Row(modifier = Modifier.height(48.dp)) {
+                                // 1. Date Cells
                                 dateHeaders.forEachIndexed { dateIdx, _ ->
                                     val cellText = dataCells.getOrNull(dateIdx) ?: ""
                                     GridCell(
@@ -183,65 +196,21 @@ fun AttendanceTableScreen(
                                             .fillMaxHeight()
                                     )
                                 }
+                                // 2. Summary Cells (Atted/Held & %)
+                                summaryHeaderIndices.forEach { sumColIdx ->
+                                    val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
+                                    val cellText = dataCells.getOrNull(sumColIdx) ?: ""
+                                    val w = if (hText.contains("%")) 65.dp else 85.dp
+                                    GridCell(
+                                        text = cellText,
+                                        isHeader = false,
+                                        modifier = Modifier
+                                            .width(w)
+                                            .fillMaxHeight()
+                                    )
+                                }
                             }
                             HorizontalDivider(color = Color(0xFF1F2937))
-                        }
-                    }
-                }
-
-                // -------------------------------------------------------------
-                // 3. RIGHT STICKY SUMMARY COLUMN: Attended/Held & %
-                // -------------------------------------------------------------
-                if (summaryHeaders.isNotEmpty()) {
-                    VerticalDivider(color = Color(0xFF374151))
-
-                    Column(
-                        modifier = Modifier
-                            .width(135.dp)
-                            .fillMaxHeight()
-                            .background(Color(0xFF111827))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .height(48.dp)
-                                .background(Color(0xFF1F2937))
-                        ) {
-                            summaryHeaders.forEach { hText ->
-                                val w = if (hText.contains("%")) 55.dp else 80.dp
-                                GridCell(
-                                    text = hText,
-                                    isHeader = true,
-                                    modifier = Modifier
-                                        .width(w)
-                                        .fillMaxHeight()
-                                )
-                            }
-                        }
-
-                        HorizontalDivider(color = Color(0xFF374151))
-
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            state = lazyListState
-                        ) {
-                            items(rows) { row ->
-                                val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
-                                Row(modifier = Modifier.height(48.dp)) {
-                                    summaryHeaderIndices.forEach { sumColIdx ->
-                                        val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
-                                        val cellText = dataCells.getOrNull(sumColIdx) ?: ""
-                                        val w = if (hText.contains("%")) 55.dp else 80.dp
-                                        GridCell(
-                                            text = cellText,
-                                            isHeader = false,
-                                            modifier = Modifier
-                                                .width(w)
-                                                .fillMaxHeight()
-                                        )
-                                    }
-                                }
-                                HorizontalDivider(color = Color(0xFF1F2937))
-                            }
                         }
                     }
                 }
