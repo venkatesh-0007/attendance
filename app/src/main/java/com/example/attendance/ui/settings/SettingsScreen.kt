@@ -75,25 +75,38 @@ class SettingsViewModel @Inject constructor(
     val lastUpdated: Long
         get() = prefs.lastUpdated
 
-    fun updateDarkMode(mode: String) {
+    fun updateDarkMode(mode: String, context: Context) {
         prefs.darkMode = mode
         darkMode = mode
+        refreshWidgets(context)
     }
 
-    fun updateAccentColor(hex: String?) {
+    fun updateAccentColor(hex: String?, context: Context) {
         prefs.accentColor = hex
         accentColor = hex
+        refreshWidgets(context)
     }
 
-    fun updateNotificationThreshold(threshold: Int) {
+    fun updateNotificationThreshold(threshold: Int, context: Context) {
         prefs.notificationThreshold = threshold
         notificationThreshold = threshold
+        refreshWidgets(context)
     }
 
     fun updateRefreshInterval(minutes: Int, context: Context) {
         prefs.refreshIntervalMinutes = minutes
         refreshIntervalMinutes = minutes
         rescheduleWorker(context)
+    }
+
+    private fun refreshWidgets(context: Context) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                com.example.attendance.widget.WidgetUpdater.updateAll(context)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun switchAccount(studentId: String) {
@@ -125,12 +138,18 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun rescheduleWorker(context: Context) {
-        val intervalMinutes = prefs.refreshIntervalMinutes.toLong()
-        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(intervalMinutes, TimeUnit.MINUTES)
+        val intervalMinutes = prefs.refreshIntervalMinutes.toLong().coerceAtLeast(15L)
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
             .build()
+
+        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(intervalMinutes, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             "attendance_sync_work",
-            ExistingPeriodicWorkPolicy.UPDATE,
+            ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
             syncRequest
         )
     }
@@ -322,7 +341,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Slider(
                             value = viewModel.notificationThreshold.toFloat(),
-                            onValueChange = { viewModel.updateNotificationThreshold(it.toInt()) },
+                            onValueChange = { viewModel.updateNotificationThreshold(it.toInt(), context) },
                             valueRange = 50f..95f
                         )
                     }
@@ -426,7 +445,7 @@ fun SettingsScreen(
                             ).forEach { (mode, icon) ->
                                 FilterChip(
                                     selected = viewModel.darkMode == mode,
-                                    onClick = { viewModel.updateDarkMode(mode) },
+                                    onClick = { viewModel.updateDarkMode(mode, context) },
                                     leadingIcon = {
                                         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
                                     },
@@ -456,7 +475,7 @@ fun SettingsScreen(
                                 ColorCircle(
                                     color = color,
                                     isSelected = viewModel.accentColor == hex,
-                                    onClick = { viewModel.updateAccentColor(hex) }
+                                    onClick = { viewModel.updateAccentColor(hex, context) }
                                 )
                             }
                         }

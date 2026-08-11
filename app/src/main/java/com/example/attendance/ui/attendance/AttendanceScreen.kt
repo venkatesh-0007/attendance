@@ -265,7 +265,10 @@ fun AttendanceScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(filteredSortedSubjects) { subject ->
+                    items(
+                        items = filteredSortedSubjects,
+                        key = { it.subject_name }
+                    ) { subject ->
                         SubjectCard(
                             subject = subject,
                             threshold = threshold,

@@ -16,6 +16,7 @@ import com.example.attendance.ui.attendance.AttendanceTableScreen
 import com.example.attendance.ui.timetable.TimetableScreen
 import com.example.attendance.ui.settings.SettingsScreen
 import com.example.attendance.ui.calendar.AttendanceCalendarScreen
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,19 +34,23 @@ fun MainNavigation(initialTarget: String? = null) {
 
     val backStack = rememberNavBackStack(startDestination)
 
+    fun navigateTo(destination: androidx.navigation3.runtime.NavKey) {
+        if (backStack.lastOrNull() != destination) {
+            backStack.add(destination)
+        }
+    }
+
+    fun popBack() {
+        if (backStack.size > 1) {
+            backStack.removeLastOrNull()
+        }
+    }
+
     LaunchedEffect(initialTarget, isLoggedIn) {
         if (isLoggedIn && initialTarget != null) {
             when (initialTarget) {
-                "TODAYS_REGISTER" -> {
-                    if (!backStack.contains(AttendanceTable)) {
-                        backStack.add(AttendanceTable)
-                    }
-                }
-                "PREDICTION" -> {
-                    if (!backStack.contains(Attendance)) {
-                        backStack.add(Attendance)
-                    }
-                }
+                "TODAYS_REGISTER" -> navigateTo(AttendanceTable)
+                "PREDICTION" -> navigateTo(Attendance)
                 "DASHBOARD" -> {
                     while (backStack.size > 1) {
                         backStack.removeLastOrNull()
@@ -57,30 +62,26 @@ fun MainNavigation(initialTarget: String? = null) {
 
     NavDisplay(
         backStack = backStack,
-        onBack = {
-            if (backStack.size > 1) {
-                backStack.removeLastOrNull()
-            }
-        },
+        onBack = { popBack() },
         transitionSpec = {
             slideInHorizontally(
-                initialOffsetX = { it },
-                animationSpec = tween(400)
-            ) + fadeIn(animationSpec = tween(400)) togetherWith
+                initialOffsetX = { fullWidth -> fullWidth / 4 },
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
             slideOutHorizontally(
-                targetOffsetX = { -it },
-                animationSpec = tween(400)
-            ) + fadeOut(animationSpec = tween(400))
+                targetOffsetX = { fullWidth -> -fullWidth / 4 },
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
         },
         popTransitionSpec = {
             slideInHorizontally(
-                initialOffsetX = { -it },
-                animationSpec = tween(400)
-            ) + fadeIn(animationSpec = tween(400)) togetherWith
+                initialOffsetX = { fullWidth -> -fullWidth / 4 },
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
             slideOutHorizontally(
-                targetOffsetX = { it },
-                animationSpec = tween(400)
-            ) + fadeOut(animationSpec = tween(400))
+                targetOffsetX = { fullWidth -> fullWidth / 4 },
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
         },
         entryProvider = entryProvider {
             entry<Login> {
@@ -95,51 +96,51 @@ fun MainNavigation(initialTarget: String? = null) {
             }
             entry<Dashboard> {
                 DashboardScreen(
-                    onNavigateToAttendance = { backStack.add(Attendance) },
-                    onNavigateToTimetable = { backStack.add(Timetable) },
-                    onNavigateToSettings = { backStack.add(Settings) },
-                    onNavigateToCalendar = { backStack.add(Calendar) },
-                    onNavigateToTable = { backStack.add(AttendanceTable) }
+                    onNavigateToAttendance = { navigateTo(Attendance) },
+                    onNavigateToTimetable = { navigateTo(Timetable) },
+                    onNavigateToSettings = { navigateTo(Settings) },
+                    onNavigateToCalendar = { navigateTo(Calendar) },
+                    onNavigateToTable = { navigateTo(AttendanceTable) }
                 )
             }
             entry<Attendance> {
                 AttendanceScreen(
-                    onNavigateToSubjectDetails = { name -> backStack.add(SubjectDetails(name)) },
-                    onNavigateToTable = { backStack.add(AttendanceTable) },
-                    onBack = { backStack.removeLastOrNull() }
+                    onNavigateToSubjectDetails = { name -> navigateTo(SubjectDetails(name)) },
+                    onNavigateToTable = { navigateTo(AttendanceTable) },
+                    onBack = { popBack() }
                 )
             }
             entry<SubjectDetails> { key ->
                 SubjectDetailScreen(
                     subjectName = key.subjectName,
-                    onBack = { backStack.removeLastOrNull() }
+                    onBack = { popBack() }
                 )
             }
             entry<AttendanceTable> {
                 AttendanceTableScreen(
-                    onBack = { backStack.removeLastOrNull() }
+                    onBack = { popBack() }
                 )
             }
             entry<Timetable> {
                 TimetableScreen(
-                    onBack = { backStack.removeLastOrNull() }
+                    onBack = { popBack() }
                 )
             }
             entry<Settings> {
                 SettingsScreen(
-                    onAddAccount = { backStack.add(Login) },
+                    onAddAccount = { navigateTo(Login) },
                     onLogout = {
                         while (backStack.size > 0) {
                             backStack.removeLastOrNull()
                         }
                         backStack.add(Login)
                     },
-                    onBack = { backStack.removeLastOrNull() }
+                    onBack = { popBack() }
                 )
             }
             entry<Calendar> {
                 AttendanceCalendarScreen(
-                    onBack = { backStack.removeLastOrNull() }
+                    onBack = { popBack() }
                 )
             }
         }

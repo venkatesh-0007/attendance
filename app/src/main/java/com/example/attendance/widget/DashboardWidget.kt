@@ -77,21 +77,15 @@ class DashboardWidget : GlanceAppWidget() {
             }
 
             val accentHex = securePrefs.accentColor
-            val accentColor = remember(accentHex) {
-                accentHex?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF4F46E5) // Default Indigo
-            }
-
+            val accentColor = remember(accentHex) { WidgetThemeHelper.getAccentColor(accentHex) }
             val darkMode = securePrefs.darkMode
-            val isDark = when (darkMode) {
-                "DARK" -> true
-                "LIGHT" -> false
-                else -> {
-                    val currentNightMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-                    currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
-                }
-            }
+            val isDark = WidgetThemeHelper.isDarkTheme(context, darkMode)
 
-            GlanceTheme {
+            WidgetThemeHelper.AttendanceWidgetTheme(
+                context = context,
+                darkModeSetting = darkMode,
+                accentHex = accentHex
+            ) {
                 DashboardContent(widgetState, isRefreshing, accentColor, isDark, securePrefs)
             }
         }
