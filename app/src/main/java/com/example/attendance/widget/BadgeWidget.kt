@@ -71,17 +71,14 @@ class BadgeWidget : GlanceAppWidget() {
                 response?.toWidgetState(securePrefs.notificationThreshold.toDouble(), securePrefs.lastUpdated)
             }
 
-            val accentHex = securePrefs.accentColor
-            val accentColor = remember(accentHex) { WidgetThemeHelper.getAccentColor(accentHex) }
             val darkMode = securePrefs.darkMode
             val isDark = WidgetThemeHelper.isDarkTheme(context, darkMode)
 
             WidgetThemeHelper.AttendanceWidgetTheme(
                 context = context,
-                darkModeSetting = darkMode,
-                accentHex = accentHex
+                darkModeSetting = darkMode
             ) {
-                BadgeContent(widgetState, isRefreshing, accentColor, isDark)
+                BadgeContent(widgetState, isRefreshing, isDark)
             }
         }
     }
@@ -90,12 +87,11 @@ class BadgeWidget : GlanceAppWidget() {
     private fun BadgeContent(
         state: AttendanceWidgetState?,
         isRefreshing: Boolean,
-        accentColor: Color,
         isDark: Boolean
     ) {
-        val surfaceBg = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
-        val onSurfaceColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
-        val onSurfaceVariantColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+        val surfaceBg = if (isDark) Color(0xFF09090B) else Color(0xFFFFFFFF)
+        val onSurfaceColor = if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B)
+        val onSurfaceVariantColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
 
         val rootModifier = GlanceModifier
             .fillMaxSize()
@@ -118,17 +114,9 @@ class BadgeWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
                 )
             } else {
-                val statusColor = when (state.attendanceStatus) {
-                    OverallAttendanceStatus.SAFE -> Color(0xFF2E7D32)
-                    OverallAttendanceStatus.WARNING -> Color(0xFFEF6C00)
-                    OverallAttendanceStatus.CRITICAL -> Color(0xFFC62828)
-                }
-
-                val statusBgColor = when (state.attendanceStatus) {
-                    OverallAttendanceStatus.SAFE -> Color(0xFFE8F5E9)
-                    OverallAttendanceStatus.WARNING -> Color(0xFFFFF3E0)
-                    OverallAttendanceStatus.CRITICAL -> Color(0xFFFFEBEE)
-                }
+                val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
+                val statusColor = if (isCritical) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
+                val statusBgColor = if (isCritical) (if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)) else (if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5))
 
                 // Left: Pill badge showing percentage
                 Box(
@@ -182,7 +170,7 @@ class BadgeWidget : GlanceAppWidget() {
             ) {
                 if (isRefreshing) {
                     CircularProgressIndicator(
-                        color = ColorProvider(accentColor),
+                        color = ColorProvider(onSurfaceColor),
                         modifier = GlanceModifier.size(12.dp)
                     )
                 } else {
@@ -191,7 +179,7 @@ class BadgeWidget : GlanceAppWidget() {
                         style = TextStyle(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = ColorProvider(accentColor),
+                            color = ColorProvider(onSurfaceColor),
                             textAlign = TextAlign.Center
                         )
                     )

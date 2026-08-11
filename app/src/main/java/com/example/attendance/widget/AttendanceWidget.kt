@@ -76,17 +76,14 @@ class AttendanceWidget : GlanceAppWidget() {
                 response?.toWidgetState(securePrefs.notificationThreshold.toDouble(), securePrefs.lastUpdated)
             }
 
-            val accentHex = securePrefs.accentColor
-            val accentColor = remember(accentHex) { WidgetThemeHelper.getAccentColor(accentHex) }
             val darkMode = securePrefs.darkMode
             val isDark = WidgetThemeHelper.isDarkTheme(context, darkMode)
 
             WidgetThemeHelper.AttendanceWidgetTheme(
                 context = context,
-                darkModeSetting = darkMode,
-                accentHex = accentHex
+                darkModeSetting = darkMode
             ) {
-                SmallWidgetContent(widgetState, isRefreshing, accentColor, isDark, securePrefs)
+                SmallWidgetContent(widgetState, isRefreshing, isDark, securePrefs)
             }
         }
     }
@@ -95,13 +92,12 @@ class AttendanceWidget : GlanceAppWidget() {
     private fun SmallWidgetContent(
         state: AttendanceWidgetState?,
         isRefreshing: Boolean,
-        accentColor: Color,
         isDark: Boolean,
         securePrefs: SecurePreferences
     ) {
-        val surfaceBg = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
-        val onSurfaceColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
-        val onSurfaceVariantColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+        val surfaceBg = if (isDark) Color(0xFF09090B) else Color(0xFFFFFFFF)
+        val onSurfaceColor = if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B)
+        val onSurfaceVariantColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
 
         val rootModifier = GlanceModifier
             .fillMaxSize()
@@ -138,7 +134,7 @@ class AttendanceWidget : GlanceAppWidget() {
                 ) {
                     if (isRefreshing) {
                         CircularProgressIndicator(
-                            color = ColorProvider(accentColor),
+                            color = ColorProvider(onSurfaceColor),
                             modifier = GlanceModifier.size(14.dp)
                         )
                     } else {
@@ -147,7 +143,7 @@ class AttendanceWidget : GlanceAppWidget() {
                             style = TextStyle(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = ColorProvider(accentColor),
+                                color = ColorProvider(onSurfaceColor),
                                 textAlign = TextAlign.Center
                             )
                         )
@@ -173,11 +169,8 @@ class AttendanceWidget : GlanceAppWidget() {
                     )
                 }
             } else {
-                val statusColor = when (state.attendanceStatus) {
-                    OverallAttendanceStatus.SAFE -> Color(0xFF2E7D32)
-                    OverallAttendanceStatus.WARNING -> Color(0xFFEF6C00)
-                    OverallAttendanceStatus.CRITICAL -> Color(0xFFC62828)
-                }
+                val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
+                val statusColor = if (isCritical) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
 
                 // Middle split layout (Gauge left, metrics stack right)
                 Row(
@@ -192,11 +185,10 @@ class AttendanceWidget : GlanceAppWidget() {
                         contentAlignment = Alignment.Center
                     ) {
                         val threshold = securePrefs.notificationThreshold
-                        val gaugeBitmap = remember(state.attendancePercentage, accentColor, isDark) {
+                        val gaugeBitmap = remember(state.attendancePercentage, isDark) {
                             createCircularGaugeBitmap(
                                 percentage = state.attendancePercentage,
                                 threshold = threshold,
-                                accentColor = accentColor,
                                 isDark = isDark
                             )
                         }
@@ -223,10 +215,14 @@ class AttendanceWidget : GlanceAppWidget() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Prediction Chip
-                        val isCanSkip = state.attendanceStatus != OverallAttendanceStatus.CRITICAL && state.periodsCanSkip > 0
-                        val cardBg = if (isCanSkip) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                        val cardTextAccent = if (isCanSkip) Color(0xFF2E7D32) else Color(0xFFC62828)
-                        val cardLabel = if (isCanSkip) "🟢 Skip ${state.periodsCanSkip}" else "🔴 Attend ${state.periodsNeedToAttend}"
+                        val isCanSkip = !isCritical && state.periodsCanSkip > 0
+                        val cardBg = if (isCanSkip) {
+                            if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
+                        } else {
+                            if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
+                        }
+                        val cardTextAccent = if (isCanSkip) onSurfaceColor else (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
+                        val cardLabel = if (isCanSkip) "Skip ${state.periodsCanSkip}" else "Attend ${state.periodsNeedToAttend}"
 
                         Box(
                             modifier = GlanceModifier
@@ -284,7 +280,7 @@ class AttendanceWidget : GlanceAppWidget() {
                 ) {
                     if (state.todayAttendanceTimeline.isEmpty()) {
                         Text(
-                            text = "📅 No classes today",
+                            text = "No classes today",
                             style = TextStyle(
                                 fontSize = 10.sp,
                                 color = ColorProvider(onSurfaceVariantColor)
@@ -311,7 +307,6 @@ class AttendanceWidget : GlanceAppWidget() {
     private fun createCircularGaugeBitmap(
         percentage: Double,
         threshold: Int,
-        accentColor: Color,
         isDark: Boolean
     ): Bitmap {
         val sizePx = 200
@@ -333,15 +328,15 @@ class AttendanceWidget : GlanceAppWidget() {
         )
         
         // 1. Draw track
-        val trackColor = if (isDark) 0xFF334155.toInt() else 0xFFE2E8F0.toInt()
+        val trackColor = if (isDark) 0xFF27272A.toInt() else 0xFFE4E4E7.toInt()
         paint.color = trackColor
         canvas.drawArc(rect, 0f, 360f, false, paint)
         
         // 2. Draw active progress
         val indicatorColor = if (percentage >= threshold) {
-            accentColor.toArgb()
+            if (isDark) 0xFFFAFAFA.toInt() else 0xFF09090B.toInt()
         } else {
-            0xFFDC2626.toInt() // Red error
+            if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt()
         }
         paint.color = indicatorColor
         val sweepAngle = ((percentage / 100.0) * 360.0).coerceIn(0.0, 360.0).toFloat()
@@ -353,13 +348,29 @@ class AttendanceWidget : GlanceAppWidget() {
     @Composable
     private fun CompactChip(status: AttendanceStatus, isDark: Boolean) {
         val (bg, textColor, symbol) = when (status) {
-            AttendanceStatus.PRESENT -> Triple(Color(0xFF2E7D32), Color.White, "P")
-            AttendanceStatus.ABSENT -> Triple(Color(0xFFC62828), Color.White, "A")
-            AttendanceStatus.HOLIDAY -> Triple(Color(0xFF1565C0), Color.White, "H")
-            AttendanceStatus.LEAVE -> Triple(Color(0xFF6A1B9A), Color.White, "L")
+            AttendanceStatus.PRESENT -> Triple(
+                if (isDark) Color(0xFF27272A) else Color(0xFFE4E4E7),
+                if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B),
+                "P"
+            )
+            AttendanceStatus.ABSENT -> Triple(
+                if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626),
+                Color.White,
+                "A"
+            )
+            AttendanceStatus.HOLIDAY -> Triple(
+                if (isDark) Color(0xFF3F3F46) else Color(0xFFD4D4D8),
+                if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B),
+                "H"
+            )
+            AttendanceStatus.LEAVE -> Triple(
+                if (isDark) Color(0xFF3F3F46) else Color(0xFFD4D4D8),
+                if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B),
+                "L"
+            )
             AttendanceStatus.UPCOMING -> Triple(
-                if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0),
-                if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5),
+                if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A),
                 "-"
             )
         }
