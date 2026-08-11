@@ -421,7 +421,7 @@ class DashboardWidget : GlanceAppWidget() {
                     ) {
                         Column(modifier = GlanceModifier.fillMaxWidth()) {
                             Text(
-                                text = "Today's Sequence",
+                                text = "Today's Attendance",
                                 style = TextStyle(
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,

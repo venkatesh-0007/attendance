@@ -219,7 +219,7 @@ class AttendanceWidget : GlanceAppWidget() {
                         .clickable(createTargetAction("TODAYS_REGISTER"))
                 ) {
                     Text(
-                        text = "Today",
+                        text = "Today's Attendance",
                         style = TextStyle(
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,

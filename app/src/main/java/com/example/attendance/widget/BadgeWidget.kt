@@ -139,13 +139,20 @@ class BadgeWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.width(8.dp))
 
-                // Center/Right: Today's status count text
+                // Center/Right: Today's attendance sequence text
                 val todayText = if (state.todayAttendanceTimeline.isNotEmpty()) {
-                    val presentCount = state.todayAttendanceTimeline.count { it == AttendanceStatus.PRESENT }
-                    val absentCount = state.todayAttendanceTimeline.count { it == AttendanceStatus.ABSENT }
-                    "Today: ${presentCount}P ${absentCount}A"
+                    val seq = state.todayAttendanceTimeline.joinToString("") { status ->
+                        when (status) {
+                            AttendanceStatus.PRESENT -> "P"
+                            AttendanceStatus.ABSENT -> "A"
+                            AttendanceStatus.HOLIDAY -> "H"
+                            AttendanceStatus.LEAVE -> "L"
+                            AttendanceStatus.UPCOMING -> "-"
+                        }
+                    }
+                    "Today's Attendance: $seq"
                 } else {
-                    "Today: No classes"
+                    "Today's Attendance: No classes"
                 }
 
                 Text(
