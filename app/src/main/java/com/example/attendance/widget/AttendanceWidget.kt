@@ -96,6 +96,7 @@ class AttendanceWidget : GlanceAppWidget() {
         securePrefs: SecurePreferences
     ) {
         val surfaceBg = if (isDark) Color(0xFF09090B) else Color(0xFFFFFFFF)
+        val cardBg = if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
         val onSurfaceColor = if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B)
         val onSurfaceVariantColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
 
@@ -104,7 +105,7 @@ class AttendanceWidget : GlanceAppWidget() {
             .appWidgetBackground()
             .background(ColorProvider(surfaceBg))
             .cornerRadius(20.dp)
-            .padding(14.dp)
+            .padding(12.dp)
 
         Column(
             modifier = rootModifier,
@@ -130,7 +131,7 @@ class AttendanceWidget : GlanceAppWidget() {
                 val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
                 val statusColor = if (isCritical) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
 
-                // 1. Present Attendance Percentage & Refresh Button Row
+                // 1. TOP SECTION: Attendance Percentage & Refresh Button Row
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -146,11 +147,11 @@ class AttendanceWidget : GlanceAppWidget() {
                                 color = ColorProvider(onSurfaceVariantColor)
                             )
                         )
-                        Spacer(modifier = GlanceModifier.height(2.dp))
+                        Spacer(modifier = GlanceModifier.height(1.dp))
                         Text(
                             text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
                             style = TextStyle(
-                                fontSize = 28.sp,
+                                fontSize = 26.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ColorProvider(statusColor)
                             )
@@ -183,10 +184,12 @@ class AttendanceWidget : GlanceAppWidget() {
                     }
                 }
 
-                // 2. Middle Section: Highlighted Prediction Card (Utilizing empty middle space)
+                Spacer(modifier = GlanceModifier.defaultWeight())
+
+                // 2. MIDDLE SECTION: Highlighted Prediction Card
                 val isCanSkip = !isCritical && state.periodsCanSkip > 0
                 val skipBg = if (isCanSkip) {
-                    if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
+                    cardBg
                 } else {
                     if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
                 }
@@ -194,7 +197,7 @@ class AttendanceWidget : GlanceAppWidget() {
                 val skipSubTextColor = if (isCanSkip) onSurfaceVariantColor else (if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C))
 
                 val mainNumberStr = if (isCanSkip) "${state.periodsCanSkip}" else "${state.periodsNeedToAttend}"
-                val titleStr = if (isCanSkip) "Periods Can Skip" else "Periods Need Attend"
+                val titleStr = if (isCanSkip) "Periods Can Skip" else "Need Attend"
                 val subtitleStr = if (isCanSkip) "Safe to miss without drop" else "Required for target margin"
 
                 Box(
@@ -202,7 +205,7 @@ class AttendanceWidget : GlanceAppWidget() {
                         .fillMaxWidth()
                         .background(ColorProvider(skipBg))
                         .cornerRadius(14.dp)
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 10.dp, vertical = 7.dp)
                         .clickable(createTargetAction("PREDICTION")),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -213,19 +216,19 @@ class AttendanceWidget : GlanceAppWidget() {
                         Text(
                             text = mainNumberStr,
                             style = TextStyle(
-                                fontSize = 22.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ColorProvider(skipTextColor)
                             )
                         )
 
-                        Spacer(modifier = GlanceModifier.width(10.dp))
+                        Spacer(modifier = GlanceModifier.width(8.dp))
 
                         Column(modifier = GlanceModifier.defaultWeight()) {
                             Text(
                                 text = titleStr,
                                 style = TextStyle(
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = ColorProvider(skipTextColor)
                                 )
@@ -242,56 +245,62 @@ class AttendanceWidget : GlanceAppWidget() {
                     }
                 }
 
-                // 3. Today's Attendance Sequence (Fixed 7-Slot Grid)
-                Column(
+                Spacer(modifier = GlanceModifier.defaultWeight())
+
+                // 3. BOTTOM SECTION: Today's Attendance Card (Fixed 7-Slot Grid)
+                Box(
                     modifier = GlanceModifier
                         .fillMaxWidth()
+                        .background(ColorProvider(cardBg))
+                        .cornerRadius(14.dp)
+                        .padding(horizontal = 10.dp, vertical = 7.dp)
                         .clickable(createTargetAction("TODAYS_REGISTER"))
                 ) {
-                    Text(
-                        text = "Today's Attendance",
-                        style = TextStyle(
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(onSurfaceVariantColor)
-                        )
-                    )
-                    Spacer(modifier = GlanceModifier.height(4.dp))
-
-                    val rawTimeline = state.todayAttendanceTimeline
-                    if (rawTimeline.isEmpty()) {
+                    Column(modifier = GlanceModifier.fillMaxWidth()) {
                         Text(
-                            text = "No classes today",
+                            text = "Today's Attendance",
                             style = TextStyle(
-                                fontSize = 11.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = ColorProvider(onSurfaceColor)
+                                color = ColorProvider(onSurfaceVariantColor)
                             )
                         )
-                    } else {
-                        val fixedCount = maxOf(7, rawTimeline.size)
-                        val fixedTimeline = List(fixedCount) { i ->
-                            if (i < rawTimeline.size) rawTimeline[i] else AttendanceStatus.UPCOMING
-                        }
+                        Spacer(modifier = GlanceModifier.height(4.dp))
 
-                        Row(
-                            modifier = GlanceModifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val chipSizeDp = if (fixedCount >= 8) 12 else 14
-                            val fontSize = if (fixedCount >= 8) 7.sp else 8.sp
+                        val rawTimeline = state.todayAttendanceTimeline
+                        if (rawTimeline.isEmpty()) {
+                            Text(
+                                text = "No classes today",
+                                style = TextStyle(
+                                    fontSize = 10.sp,
+                                    color = ColorProvider(onSurfaceVariantColor)
+                                )
+                            )
+                        } else {
+                            val fixedCount = maxOf(7, rawTimeline.size)
+                            val fixedTimeline = List(fixedCount) { i ->
+                                if (i < rawTimeline.size) rawTimeline[i] else AttendanceStatus.UPCOMING
+                            }
 
-                            fixedTimeline.forEachIndexed { index, status ->
-                                Box(
-                                    modifier = GlanceModifier.defaultWeight(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CompactChip(
-                                        status = status,
-                                        isDark = isDark,
-                                        chipSizeDp = chipSizeDp,
-                                        fontSize = fontSize
-                                    )
+                            Row(
+                                modifier = GlanceModifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val chipSizeDp = if (fixedCount >= 8) 12 else 14
+                                val fontSize = if (fixedCount >= 8) 7.sp else 8.sp
+
+                                fixedTimeline.forEachIndexed { index, status ->
+                                    Box(
+                                        modifier = GlanceModifier.defaultWeight(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CompactChip(
+                                            status = status,
+                                            isDark = isDark,
+                                            chipSizeDp = chipSizeDp,
+                                            fontSize = fontSize
+                                        )
+                                    }
                                 }
                             }
                         }
