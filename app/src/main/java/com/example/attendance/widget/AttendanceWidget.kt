@@ -183,36 +183,66 @@ class AttendanceWidget : GlanceAppWidget() {
                     }
                 }
 
-                // 2. Periods Can Skip Badge
+                // 2. Middle Section: Highlighted Prediction Card (Utilizing empty middle space)
                 val isCanSkip = !isCritical && state.periodsCanSkip > 0
                 val skipBg = if (isCanSkip) {
                     if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
                 } else {
                     if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
                 }
-                val skipText = if (isCanSkip) onSurfaceColor else (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
-                val skipLabel = if (isCanSkip) "Skip: ${state.periodsCanSkip} periods" else "Attend: ${state.periodsNeedToAttend} periods"
+                val skipTextColor = if (isCanSkip) onSurfaceColor else (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
+                val skipSubTextColor = if (isCanSkip) onSurfaceVariantColor else (if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C))
+
+                val mainNumberStr = if (isCanSkip) "${state.periodsCanSkip}" else "${state.periodsNeedToAttend}"
+                val titleStr = if (isCanSkip) "Periods Can Skip" else "Periods Need Attend"
+                val subtitleStr = if (isCanSkip) "Safe to miss without drop" else "Required for target margin"
 
                 Box(
                     modifier = GlanceModifier
                         .fillMaxWidth()
                         .background(ColorProvider(skipBg))
-                        .cornerRadius(10.dp)
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .cornerRadius(14.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .clickable(createTargetAction("PREDICTION")),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(
-                        text = skipLabel,
-                        style = TextStyle(
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(skipText)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = GlanceModifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = mainNumberStr,
+                            style = TextStyle(
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(skipTextColor)
+                            )
                         )
-                    )
+
+                        Spacer(modifier = GlanceModifier.width(10.dp))
+
+                        Column(modifier = GlanceModifier.defaultWeight()) {
+                            Text(
+                                text = titleStr,
+                                style = TextStyle(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorProvider(skipTextColor)
+                                )
+                            )
+                            Spacer(modifier = GlanceModifier.height(1.dp))
+                            Text(
+                                text = subtitleStr,
+                                style = TextStyle(
+                                    fontSize = 8.sp,
+                                    color = ColorProvider(skipSubTextColor)
+                                )
+                            )
+                        }
+                    }
                 }
 
-                // 3. Today's Attendance Sequence (e.g. PPPPPPP)
+                // 3. Today's Attendance Sequence (Fixed 7-Slot Grid)
                 Column(
                     modifier = GlanceModifier
                         .fillMaxWidth()
@@ -227,9 +257,11 @@ class AttendanceWidget : GlanceAppWidget() {
                         )
                     )
                     Spacer(modifier = GlanceModifier.height(4.dp))
-                    if (state.todayAttendanceTimeline.isEmpty()) {
+
+                    val rawTimeline = state.todayAttendanceTimeline
+                    if (rawTimeline.isEmpty()) {
                         Text(
-                            text = "No classes",
+                            text = "No classes today",
                             style = TextStyle(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -237,21 +269,19 @@ class AttendanceWidget : GlanceAppWidget() {
                             )
                         )
                     } else {
+                        val fixedCount = maxOf(7, rawTimeline.size)
+                        val fixedTimeline = List(fixedCount) { i ->
+                            if (i < rawTimeline.size) rawTimeline[i] else AttendanceStatus.UPCOMING
+                        }
+
                         Row(
                             modifier = GlanceModifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val timeline = state.todayAttendanceTimeline
-                            val totalCount = timeline.size
-                            val chipSizeDp = when {
-                                totalCount >= 8 -> 12
-                                totalCount >= 7 -> 14
-                                totalCount >= 6 -> 15
-                                else -> 16
-                            }
-                            val fontSize = if (totalCount >= 7) 8.sp else 9.sp
+                            val chipSizeDp = if (fixedCount >= 8) 12 else 14
+                            val fontSize = if (fixedCount >= 8) 7.sp else 8.sp
 
-                            timeline.forEachIndexed { index, status ->
+                            fixedTimeline.forEachIndexed { index, status ->
                                 Box(
                                     modifier = GlanceModifier.defaultWeight(),
                                     contentAlignment = Alignment.Center
