@@ -118,6 +118,11 @@ class SettingsViewModel @Inject constructor(
         savedAccounts = repository.getSavedAccounts()
     }
 
+    fun updateAccountCustomName(studentId: String, customName: String) {
+        repository.updateAccountCustomName(studentId, customName)
+        savedAccounts = repository.getSavedAccounts()
+    }
+
     fun logout() {
         repository.logout()
     }
@@ -166,6 +171,18 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val attendanceState by viewModel.attendanceStateFlow.collectAsState()
+    var editingAccountForName by remember { mutableStateOf<UserAccount?>(null) }
+
+    editingAccountForName?.let { accountToEdit ->
+        EditAccountNameDialog(
+            account = accountToEdit,
+            onDismiss = { editingAccountForName = null },
+            onConfirm = { newCustomName ->
+                viewModel.updateAccountCustomName(accountToEdit.studentId, newCustomName)
+                editingAccountForName = null
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -279,6 +296,7 @@ fun SettingsScreen(
                                 account = account,
                                 isCurrent = isCurrent,
                                 onSwitch = { viewModel.switchAccount(account.studentId) },
+                                onEditName = { editingAccountForName = account },
                                 onRemove = { viewModel.removeAccount(account.studentId) }
                             )
                         }
@@ -550,6 +568,7 @@ fun AccountItem(
     account: UserAccount,
     isCurrent: Boolean,
     onSwitch: () -> Unit,
+    onEditName: () -> Unit,
     onRemove: () -> Unit
 ) {
     Row(
@@ -559,27 +578,91 @@ fun AccountItem(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val initial = account.displayName.take(1).uppercase()
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = account.studentName?.take(1) ?: "?", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text(text = initial, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = account.studentName ?: "Student", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(text = account.studentId, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = account.displayName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Roll No: ${account.studentId}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(onClick = onEditName) {
+            Icon(
+                Icons.Default.Edit,
+                contentDescription = "Edit Account Name",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
         }
         if (isCurrent) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(Icons.Default.CheckCircle, contentDescription = "Active Account", tint = MaterialTheme.colorScheme.primary)
         } else {
             IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                Icon(Icons.Default.Delete, contentDescription = "Remove Account", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
             }
         }
     }
+}
+
+@Composable
+fun EditAccountNameDialog(
+    account: UserAccount,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var nameText by remember { mutableStateOf(account.customName ?: account.studentName ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Name Account / Roll No", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    text = "Set a custom name/nickname for Roll No: ${account.studentId}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = { nameText = it },
+                    label = { Text("Account Name / Alias") },
+                    placeholder = { Text("e.g. Venkat, Primary Account") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(nameText)
+                    onDismiss()
+                }
+            ) {
+                Text("Save Name")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

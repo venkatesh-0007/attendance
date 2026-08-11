@@ -79,6 +79,16 @@ class AttendanceRepository(
         }
     }
 
+    fun updateAccountCustomName(studentId: String, customName: String) {
+        val accounts = getSavedAccounts().toMutableList()
+        val idx = accounts.indexOfFirst { it.studentId == studentId }
+        if (idx != -1) {
+            val account = accounts[idx]
+            accounts[idx] = account.copy(customName = customName.ifBlank { null })
+            saveAccounts(accounts)
+        }
+    }
+
     suspend fun fetchAttendance(studentId: String, password: String): Result<AttendanceResponse> =
         withContext(Dispatchers.IO) {
             try {
@@ -100,7 +110,14 @@ class AttendanceRepository(
                     // Update saved accounts list
                     val accounts = getSavedAccounts().toMutableList()
                     val existingIdx = accounts.indexOfFirst { it.studentId == studentId }
-                    val newAccount = UserAccount(studentId, password, response.student_name)
+                    val existingCustomName = if (existingIdx != -1) accounts[existingIdx].customName else null
+                    val name = response.student_name ?: response.roll_number
+                    val newAccount = UserAccount(
+                        studentId = studentId,
+                        password = password,
+                        studentName = name,
+                        customName = existingCustomName
+                    )
                     if (existingIdx != -1) {
                         accounts[existingIdx] = newAccount
                     } else {

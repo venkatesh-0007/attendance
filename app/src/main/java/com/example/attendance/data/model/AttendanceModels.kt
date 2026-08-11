@@ -423,8 +423,16 @@ data class AttendanceWidgetState(
 data class UserAccount(
     val studentId: String,
     val password: String,
-    val studentName: String? = null
-)
+    val studentName: String? = null,
+    val customName: String? = null
+) {
+    val displayName: String
+        get() = when {
+            !customName.isNullOrBlank() -> customName
+            !studentName.isNullOrBlank() -> studentName
+            else -> "Account ($studentId)"
+        }
+}
 
 @Serializable
 data class TotalInfo(
