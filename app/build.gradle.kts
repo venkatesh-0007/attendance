@@ -61,8 +61,15 @@ tasks.register<Copy>("copyApkToReleasesDefault") {
     rename { "Attendance-debug.apk" }
 }
 
+tasks.register<Copy>("copyApkToReleasesV1") {
+    from(layout.buildDirectory.dir("outputs/apk/debug"))
+    include("*.apk")
+    into(releasesDir)
+    rename { "Attendance-v1.0-debug.apk" }
+}
+
 afterEvaluate {
-    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToReleases", "copyApkToReleasesDefault")
+    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToReleases", "copyApkToReleasesDefault", "copyApkToReleasesV1")
 }
 
 
