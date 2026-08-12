@@ -253,6 +253,18 @@ fun SettingsScreen(
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        ActiveHoursSelector(
+                            isEnabled = viewModel.autoSyncActiveHoursOnly,
+                            startHour = viewModel.activeStartHour,
+                            endHour = viewModel.activeEndHour,
+                            onToggle = { viewModel.updateAutoSyncActiveHoursOnly(it) },
+                            onHoursChanged = { start, end -> viewModel.updateActiveHours(start, end) }
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Last Sync Status Card
                         val lastSyncStr = if (viewModel.lastUpdated > 0) {
@@ -558,7 +570,13 @@ fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun SyncIntervalSelector(currentInterval: Int, onIntervalSelected: (Int) -> Unit) {
-    val options = listOf(60 to "1 hour", 180 to "3 hours", 360 to "6 hours", 720 to "12 hours", 1440 to "24 hours")
+    val options = listOf(
+        30 to "30 minutes",
+        60 to "1 hour",
+        120 to "2 hours",
+        180 to "3 hours",
+        360 to "6 hours"
+    )
     var expanded by remember { mutableStateOf(false) }
 
     Row(
@@ -566,7 +584,7 @@ fun SyncIntervalSelector(currentInterval: Int, onIntervalSelected: (Int) -> Unit
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Background Sync", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Auto Sync Interval", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Box {
             TextButton(onClick = { expanded = true }) {
                 Text(
@@ -579,6 +597,125 @@ fun SyncIntervalSelector(currentInterval: Int, onIntervalSelected: (Int) -> Unit
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 options.forEach { (mins, label) ->
                     DropdownMenuItem(text = { Text(label) }, onClick = { onIntervalSelected(mins); expanded = false })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActiveHoursSelector(
+    isEnabled: Boolean,
+    startHour: Int,
+    endHour: Int,
+    onToggle: (Boolean) -> Unit,
+    onHoursChanged: (Int, Int) -> Unit
+) {
+    val hoursList = listOf(
+        7 to "07:00 AM",
+        8 to "08:00 AM",
+        9 to "09:00 AM",
+        10 to "10:00 AM",
+        11 to "11:00 AM",
+        12 to "12:00 PM",
+        13 to "01:00 PM",
+        14 to "02:00 PM",
+        15 to "03:00 PM",
+        16 to "04:00 PM",
+        17 to "05:00 PM",
+        18 to "06:00 PM"
+    )
+
+    var startExpanded by remember { mutableStateOf(false) }
+    var endExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Sync During College Hours Only",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Auto-updates widgets only during selected hours to save battery & data.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = onToggle
+            )
+        }
+
+        if (isEnabled) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Start Hour Picker
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { startExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "From: ${hoursList.find { it.first == startHour }?.second ?: "09:00 AM"}",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+                    DropdownMenu(
+                        expanded = startExpanded,
+                        onDismissRequest = { startExpanded = false }
+                    ) {
+                        hoursList.forEach { (h, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    onHoursChanged(h, endHour)
+                                    startExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // End Hour Picker
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { endExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "To: ${hoursList.find { it.first == endHour }?.second ?: "04:00 PM"}",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+                    DropdownMenu(
+                        expanded = endExpanded,
+                        onDismissRequest = { endExpanded = false }
+                    ) {
+                        hoursList.forEach { (h, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    onHoursChanged(startHour, h)
+                                    endExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

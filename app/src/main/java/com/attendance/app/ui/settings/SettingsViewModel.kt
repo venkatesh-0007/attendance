@@ -42,6 +42,15 @@ class SettingsViewModel @Inject constructor(
     var currentStudentId by mutableStateOf(prefs.studentId)
         private set
 
+    var autoSyncActiveHoursOnly by mutableStateOf(prefs.autoSyncActiveHoursOnly)
+        private set
+
+    var activeStartHour by mutableStateOf(prefs.activeStartHour)
+        private set
+
+    var activeEndHour by mutableStateOf(prefs.activeEndHour)
+        private set
+
     val attendanceStateFlow = repository.attendance
 
     var isRefreshing by mutableStateOf(false)
@@ -72,6 +81,18 @@ class SettingsViewModel @Inject constructor(
         prefs.refreshIntervalMinutes = minutes
         refreshIntervalMinutes = minutes
         rescheduleWorker(context)
+    }
+
+    fun updateAutoSyncActiveHoursOnly(enabled: Boolean) {
+        prefs.autoSyncActiveHoursOnly = enabled
+        autoSyncActiveHoursOnly = enabled
+    }
+
+    fun updateActiveHours(startHour: Int, endHour: Int) {
+        prefs.activeStartHour = startHour
+        prefs.activeEndHour = endHour
+        activeStartHour = startHour
+        activeEndHour = endHour
     }
 
     private fun refreshWidgets(context: Context) {

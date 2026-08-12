@@ -27,6 +27,11 @@ class SyncWorker @AssistedInject constructor(
             return@withContext Result.retry()
         }
 
+        if (!prefs.isCurrentlyInActiveHours()) {
+            // Outside configured college active hours (e.g. 9 AM - 4 PM) -> skip sync execution to save battery & data
+            return@withContext Result.success()
+        }
+
         val accounts = repository.getSavedAccounts()
         val accountsToSync = if (accounts.isNotEmpty()) accounts else {
             val id = prefs.studentId

@@ -29,6 +29,9 @@ class SecurePreferences(context: Context) {
         private const val KEY_LAST_UPDATED = "last_updated_timestamp"
         private const val KEY_ATTENDANCE_CACHE_PREFIX = "attendance_cache_"
         private const val KEY_ACCOUNTS_JSON = "accounts_json"
+        private const val KEY_AUTO_SYNC_ACTIVE_HOURS_ONLY = "auto_sync_active_hours_only"
+        private const val KEY_ACTIVE_START_HOUR = "active_start_hour"
+        private const val KEY_ACTIVE_END_HOUR = "active_end_hour"
     }
 
     var studentId: String?
@@ -62,6 +65,32 @@ class SecurePreferences(context: Context) {
     var accountsJson: String?
         get() = prefs.getString(KEY_ACCOUNTS_JSON, null)
         set(value) = prefs.edit().putString(KEY_ACCOUNTS_JSON, value).apply()
+
+    var autoSyncActiveHoursOnly: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_SYNC_ACTIVE_HOURS_ONLY, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_SYNC_ACTIVE_HOURS_ONLY, value).apply()
+
+    var activeStartHour: Int
+        get() = prefs.getInt(KEY_ACTIVE_START_HOUR, 9)
+        set(value) = prefs.edit().putInt(KEY_ACTIVE_START_HOUR, value).apply()
+
+    var activeEndHour: Int
+        get() = prefs.getInt(KEY_ACTIVE_END_HOUR, 16)
+        set(value) = prefs.edit().putInt(KEY_ACTIVE_END_HOUR, value).apply()
+
+    fun isCurrentlyInActiveHours(): Boolean {
+        if (!autoSyncActiveHoursOnly) return true
+        val calendar = java.util.Calendar.getInstance()
+        val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val start = activeStartHour
+        val end = activeEndHour
+
+        return if (start <= end) {
+            currentHour in start until end
+        } else {
+            currentHour >= start || currentHour < end
+        }
+    }
 
     fun getAttendanceCache(id: String): String? {
         return prefs.getString(KEY_ATTENDANCE_CACHE_PREFIX + id, null)
