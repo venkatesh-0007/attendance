@@ -95,5 +95,12 @@ app/src/main/java/com/attendance/app/
 
 ---
 
+## 👨‍💻 Author & Creator
+
+- **Developer**: **Venkatesh** ([@venkatesh-0007](https://github.com/venkatesh-0007))
+- **Project**: Attendance Tracker (Android App & Home Screen Widgets)
+
+---
+
 ## 📄 License
 Distributed under the MIT License. See `LICENSE` for details.
