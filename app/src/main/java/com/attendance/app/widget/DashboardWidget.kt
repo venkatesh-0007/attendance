@@ -132,23 +132,23 @@ class DashboardWidget : GlanceAppWidget() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = GlanceModifier.defaultWeight()) {
+                    val mainTitle = if (state != null && state.studentName.isNotBlank()) state.studentName else "Dashboard"
                     Text(
-                        text = "Dashboard",
+                        text = mainTitle,
                         style = TextStyle(
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = ColorProvider(onSurfaceColor)
+                        ),
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "Attendance Overview",
+                        style = TextStyle(
+                            fontSize = 10.sp,
+                            color = ColorProvider(onSurfaceVariantColor)
                         )
                     )
-                    if (state != null && state.studentName.isNotEmpty()) {
-                        Text(
-                            text = state.studentName,
-                            style = TextStyle(
-                                fontSize = 10.sp,
-                                color = ColorProvider(onSurfaceVariantColor)
-                            )
-                        )
-                    }
                 }
 
                 if (state != null && state.lastUpdated.isNotEmpty()) {

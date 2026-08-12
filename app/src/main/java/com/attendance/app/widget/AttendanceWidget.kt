@@ -154,13 +154,15 @@ class AttendanceWidget : GlanceAppWidget() {
                     Column(
                         modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
                     ) {
+                        val headerTitle = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
                         Text(
-                            text = "Attendance",
+                            text = headerTitle,
                             style = TextStyle(
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = ColorProvider(onSurfaceVariantColor)
-                            )
+                                color = ColorProvider(onSurfaceColor)
+                            ),
+                            maxLines = 1
                         )
                         Spacer(modifier = GlanceModifier.height(1.dp))
                         Text(

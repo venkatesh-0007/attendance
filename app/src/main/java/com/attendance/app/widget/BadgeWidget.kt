@@ -154,9 +154,8 @@ class BadgeWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.width(8.dp))
 
-                // Center/Right: Today's attendance sequence text
-                val todayText = if (state.todayAttendanceTimeline.isNotEmpty()) {
-                    val seq = state.todayAttendanceTimeline.joinToString("") { status ->
+                val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
+                    state.todayAttendanceTimeline.joinToString("") { status ->
                         when (status) {
                             AttendanceStatus.PRESENT -> "P"
                             AttendanceStatus.ABSENT -> "A"
@@ -165,20 +164,32 @@ class BadgeWidget : GlanceAppWidget() {
                             AttendanceStatus.UPCOMING -> "-"
                         }
                     }
-                    "Today's Attendance: $seq"
-                } else {
-                    "Today's Attendance: No classes"
-                }
+                } else "No classes"
 
-                Text(
-                    text = todayText,
-                    style = TextStyle(
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ColorProvider(onSurfaceColor)
-                    ),
-                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
-                )
+                Column(
+                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD")),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (state.studentName.isNotBlank()) {
+                        Text(
+                            text = state.studentName,
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(onSurfaceColor)
+                            ),
+                            maxLines = 1
+                        )
+                    }
+                    Text(
+                        text = "Today's Attendance: $todaySeq",
+                        style = TextStyle(
+                            fontSize = 9.sp,
+                            color = ColorProvider(onSurfaceVariantColor)
+                        ),
+                        maxLines = 1
+                    )
+                }
             }
 
             Spacer(modifier = GlanceModifier.width(4.dp))
