@@ -1,44 +1,84 @@
-# Attendance App
+# Attendance Tracker
 
-An Android application for tracking student attendance, featuring home screen widgets, subject breakdowns, and timetable schedule management.
+![Android CI Workflow](https://img.shields.io/badge/Build-Passing-brightgreen?style=flat-square&logo=github)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.0.0-blue?style=flat-square&logo=kotlin)
+![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20%26%20M3-4285F4?style=flat-square&logo=android)
+![Architecture](https://img.shields.io/badge/Architecture-MVVM%20%2B%20Clean-orange?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
----
-
-## Features
-
-### Home Screen Widgets
-- **4x2 Widget**: Shows overall attendance percentage, status badge (SAFE / WARNING / CRITICAL), periods you can skip or need to attend, today's period timeline, and total attended/held classes.
-- **2x2 Widget**: Compact view displaying percentage, status badge, skip/attend count, and period status chips.
-- **2x1 Widget**: Minimal badge showing overall attendance percentage and class counts.
-- **Widget Actions**: Tapping sections opens the Dashboard, Attendance Grid, or Subject Breakdown.
-
-### App Features
-- **Dashboard**: Overview of attendance percentage, today's class status, and quick menu options.
-- **Subject Breakdown**: Course-wise attendance counts, search, and sorting.
-- **Attendance Grid**: Full attendance register table with a sticky subject column for horizontal scrolling across dates.
-- **Class Schedule**: Weekly timetable with faculty contact information.
-- **Calendar & Export**: Monthly attendance history and PDF export option.
+**Attendance Tracker** is a modern, native Android application built with Kotlin, Jetpack Compose, Material 3, and Glance Home Screen Widgets. It helps university and college students seamlessly track course-wise attendance, simulate future leave scenarios, view interactive timetables, and monitor daily register statuses directly from their home screen.
 
 ---
 
-## Tech Stack
+## 🚀 Key Features
 
-- **Language**: Kotlin
-- **UI**: Jetpack Compose & Material 3
+### 📱 Home Screen Widgets (Jetpack Glance)
+- **4x2 Dashboard Widget**: Displays overall percentage, status badge (`SAFE` / `CRITICAL`), skip or attend period counts, today's period status timeline, and last sync timestamp.
+- **2x2 Attendance Overview Widget**: Compact view with attendance stats, target threshold margin, and period status chips.
+- **2x1 Minimal Badge Widget**: Clean badge displaying overall percentage and attendance status.
+- **Interactive Tap Actions**: Tapping widget sections directly opens specific app screens (Dashboard, Attendance Grid, Subject Details).
+
+### 📊 App Features & Analytics
+- **Dashboard**: High-level attendance gauge, target warning alerts, class counters, and period timelines.
+- **Subject Breakdown**: Course-wise attendance progress, search filtering, and sorting (alphabetical, attendance percentage).
+- **Leave & Bunk Simulator**: Simulate marking future leaves or holidays to dynamically calculate projected attendance percentages and skip allowances.
+- **Attendance Grid**: Full attendance register table featuring horizontal scroll and sticky subject headers.
+- **Weekly Schedule & Faculty**: Interactive timetable with faculty details and contact info.
+- **PDF Export**: Generate and share summary PDF reports.
+- **Multi-Account Management**: Easily switch between saved student accounts with custom display names.
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+The app adheres to modern Android Development (MAD) standards, using Clean Architecture with decoupled ViewModels, StateFlow UI states, and Dependency Injection.
+
+- **Language**: Kotlin 2.0
+- **UI Framework**: Jetpack Compose & Material Design 3
+- **Navigation**: Navigation 3 (`androidx.navigation3`)
 - **Widgets**: Jetpack Glance
-- **Architecture**: MVVM with Repository Pattern
 - **Dependency Injection**: Dagger Hilt
-- **Local Storage**: EncryptedSharedPreferences
-- **Background Tasks**: WorkManager
+- **Background Tasks**: WorkManager with custom Configuration Provider
+- **Local Storage & Security**: EncryptedSharedPreferences (`androidx.security.crypto`)
+- **Serialization**: Kotlinx Serialization
 
 ---
 
-## Building and Running
+## 📂 Project Structure
+
+```
+app/src/main/java/com/attendance/app/
+├── AttendanceApplication.kt    # Application entry point & Hilt setup
+├── MainActivity.kt             # Main Activity & Compose Window entry
+├── Navigation.kt               # Jetpack Navigation 3 router
+├── NavigationKeys.kt           # Type-safe Navigation keys
+├── data/
+│   ├── api/                    # Retrofit network API interface
+│   ├── local/                  # EncryptedSharedPreferences cache manager
+│   ├── model/                  # Domain entities, DTO responses & summaries
+│   └── repository/             # Attendance repository implementation
+├── di/                         # Hilt Dependency Injection modules
+├── theme/                      # Material 3 Color palette, Typography, & Theme
+├── ui/
+│   ├── attendance/             # Subject breakdown & Leave simulator (Screen, VM, Components)
+│   ├── calendar/               # Attendance Calendar Screen
+│   ├── dashboard/              # Home Dashboard (Screen, VM, Components)
+│   ├── login/                  # Portal Login Screen & ViewModel
+│   ├── settings/               # App Settings & Account Manager
+│   └── timetable/              # Class schedule & Faculty info
+├── util/                       # PDF Exporter & Notification Helper
+├── widget/                     # Glance Widgets, Receivers, & Updater
+└── worker/                     # WorkManager background sync & BootReceiver
+```
+
+---
+
+## 🛠️ Building & Running
 
 ### Prerequisites
-- Android Studio Koala or newer
-- Android SDK 34+
-- JDK 17
+- **Android Studio Koala** or newer
+- **Android SDK 36**
+- **JDK 17**
 
 ### Build Commands
 
@@ -46,6 +86,14 @@ An Android application for tracking student attendance, featuring home screen wi
 # Build Debug APK
 ./gradlew assembleDebug
 
+# Clean & Build Debug APK
+./gradlew clean assembleDebug
+
 # Install on connected device or emulator
 ./gradlew installDebug
 ```
+
+---
+
+## 📄 License
+Distributed under the MIT License. See `LICENSE` for details.

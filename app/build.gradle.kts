@@ -7,10 +7,10 @@ plugins {
 }
 
 android {
-    namespace = "com.example.attendance"
+    namespace = "com.attendance.app"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.attendance"
+        applicationId = "com.attendance.app"
         minSdk = 24
         targetSdk = 36
         versionCode = 100
