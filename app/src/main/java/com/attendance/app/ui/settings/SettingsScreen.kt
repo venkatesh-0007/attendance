@@ -418,7 +418,7 @@ fun SettingsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Attendance Tracker v1.0",
+                        text = "Attendance Tracker v1.1",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
