@@ -154,18 +154,6 @@ class BadgeWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.width(8.dp))
 
-                val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
-                    state.todayAttendanceTimeline.joinToString("") { status ->
-                        when (status) {
-                            AttendanceStatus.PRESENT -> "P"
-                            AttendanceStatus.ABSENT -> "A"
-                            AttendanceStatus.HOLIDAY -> "H"
-                            AttendanceStatus.LEAVE -> "L"
-                            AttendanceStatus.UPCOMING -> "-"
-                        }
-                    }
-                } else "No classes"
-
                 Column(
                     modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD")),
                     verticalAlignment = Alignment.CenterVertically
@@ -181,8 +169,45 @@ class BadgeWidget : GlanceAppWidget() {
                             maxLines = 1
                         )
                     }
+
+                    // Can Skip / Need to Attend Info
+                    val skipInfoText = when {
+                        state.periodsCanSkip > 0 -> "Can skip ${state.periodsCanSkip} ${if (state.periodsCanSkip == 1) "period" else "periods"}"
+                        state.periodsNeedToAttend > 0 -> "Need ${state.periodsNeedToAttend} ${if (state.periodsNeedToAttend == 1) "class" else "classes"}"
+                        else -> "On target"
+                    }
+
+                    val skipInfoColor = when {
+                        state.periodsCanSkip > 0 -> if (isDark) Color(0xFF34D399) else Color(0xFF059669)
+                        state.periodsNeedToAttend > 0 -> if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                        else -> onSurfaceVariantColor
+                    }
+
                     Text(
-                        text = "Today's Attendance: $todaySeq",
+                        text = skipInfoText,
+                        style = TextStyle(
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(skipInfoColor)
+                        ),
+                        maxLines = 1
+                    )
+
+                    // Today's Sequence
+                    val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
+                        state.todayAttendanceTimeline.joinToString("") { status ->
+                            when (status) {
+                                AttendanceStatus.PRESENT -> "P"
+                                AttendanceStatus.ABSENT -> "A"
+                                AttendanceStatus.HOLIDAY -> "H"
+                                AttendanceStatus.LEAVE -> "L"
+                                AttendanceStatus.UPCOMING -> "-"
+                            }
+                        }
+                    } else "No classes"
+
+                    Text(
+                        text = "Today: $todaySeq",
                         style = TextStyle(
                             fontSize = 9.sp,
                             color = ColorProvider(onSurfaceVariantColor)
