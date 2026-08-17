@@ -17,6 +17,7 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.CircularProgressIndicator
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.appWidgetBackground
@@ -108,6 +109,9 @@ class BadgeWidget : GlanceAppWidget() {
         val onSurfaceColor = if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B)
         val onSurfaceVariantColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
 
+        val size = LocalSize.current
+        val isWide = size.width >= 200.dp
+
         val rootModifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
@@ -158,42 +162,50 @@ class BadgeWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD")),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (state.studentName.isNotBlank()) {
-                        Text(
-                            text = state.studentName,
-                            style = TextStyle(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(onSurfaceColor)
-                            ),
-                            maxLines = 1
-                        )
-                    }
+                    val nameStr = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
 
-                    // Can Skip / Need to Attend Info
-                    val skipInfoText = when {
-                        state.periodsCanSkip > 0 -> "Can skip ${state.periodsCanSkip} ${if (state.periodsCanSkip == 1) "period" else "periods"}"
-                        state.periodsNeedToAttend > 0 -> "Need ${state.periodsNeedToAttend} ${if (state.periodsNeedToAttend == 1) "class" else "classes"}"
+                    val skipText = when {
+                        state.periodsCanSkip > 0 -> if (isWide) "${state.periodsCanSkip} periods skip" else "${state.periodsCanSkip} skip"
+                        state.periodsNeedToAttend > 0 -> "Need ${state.periodsNeedToAttend}"
                         else -> "On target"
                     }
 
-                    val skipInfoColor = when {
+                    val skipColor = when {
                         state.periodsCanSkip > 0 -> if (isDark) Color(0xFF34D399) else Color(0xFF059669)
                         state.periodsNeedToAttend > 0 -> if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                         else -> onSurfaceVariantColor
                     }
 
-                    Text(
-                        text = skipInfoText,
-                        style = TextStyle(
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(skipInfoColor)
-                        ),
-                        maxLines = 1
-                    )
+                    // Line 1: Name + Skip info
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = GlanceModifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = nameStr,
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(onSurfaceColor)
+                            ),
+                            maxLines = 1,
+                            modifier = GlanceModifier.defaultWeight()
+                        )
+                        Spacer(modifier = GlanceModifier.width(4.dp))
+                        Text(
+                            text = skipText,
+                            style = TextStyle(
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(skipColor)
+                            ),
+                            maxLines = 1
+                        )
+                    }
 
-                    // Today's Sequence
+                    Spacer(modifier = GlanceModifier.height(1.dp))
+
+                    // Line 2: Today's Sequence
                     val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
                         state.todayAttendanceTimeline.joinToString("") { status ->
                             when (status) {
@@ -206,8 +218,10 @@ class BadgeWidget : GlanceAppWidget() {
                         }
                     } else "No classes"
 
+                    val todayLabel = if (isWide) "Today's Timeline: $todaySeq" else "Today: $todaySeq"
+
                     Text(
-                        text = "Today: $todaySeq",
+                        text = todayLabel,
                         style = TextStyle(
                             fontSize = 9.sp,
                             color = ColorProvider(onSurfaceVariantColor)
