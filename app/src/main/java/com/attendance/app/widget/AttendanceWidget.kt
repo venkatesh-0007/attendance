@@ -98,7 +98,7 @@ class AttendanceWidget : GlanceAppWidget() {
                 context = context,
                 darkModeSetting = darkMode
             ) {
-                SmallWidgetContent(widgetState, isRefreshing, isDark, securePrefs)
+                SmallWidgetContent(widgetState, isRefreshing, isDark, securePrefs, selectedStudentId)
             }
         }
     }
@@ -108,7 +108,8 @@ class AttendanceWidget : GlanceAppWidget() {
         state: AttendanceWidgetState?,
         isRefreshing: Boolean,
         isDark: Boolean,
-        securePrefs: SecurePreferences
+        securePrefs: SecurePreferences,
+        studentId: String?
     ) {
         val surfaceBg = if (isDark) Color(0xFF09090B) else Color(0xFFFFFFFF)
         val cardBg = if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5)
@@ -139,7 +140,7 @@ class AttendanceWidget : GlanceAppWidget() {
                             color = ColorProvider(onSurfaceVariantColor),
                             textAlign = TextAlign.Center
                         ),
-                        modifier = GlanceModifier.clickable(createTargetAction("DASHBOARD"))
+                        modifier = GlanceModifier.clickable(createTargetAction("DASHBOARD", studentId))
                     )
                 }
             } else {
@@ -152,7 +153,7 @@ class AttendanceWidget : GlanceAppWidget() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(
-                        modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
+                        modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId))
                     ) {
                         val headerTitle = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
                         Text(
@@ -223,7 +224,7 @@ class AttendanceWidget : GlanceAppWidget() {
                         .background(ColorProvider(skipBg))
                         .cornerRadius(14.dp)
                         .padding(horizontal = 10.dp, vertical = 7.dp)
-                        .clickable(createTargetAction("PREDICTION")),
+                        .clickable(createTargetAction("PREDICTION", studentId)),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(
@@ -271,7 +272,7 @@ class AttendanceWidget : GlanceAppWidget() {
                         .background(ColorProvider(cardBg))
                         .cornerRadius(14.dp)
                         .padding(horizontal = 10.dp, vertical = 7.dp)
-                        .clickable(createTargetAction("TODAYS_REGISTER"))
+                        .clickable(createTargetAction("TODAYS_REGISTER", studentId))
                 ) {
                     Column(modifier = GlanceModifier.fillMaxWidth()) {
                         Text(
@@ -381,15 +382,22 @@ class AttendanceWidget : GlanceAppWidget() {
         }
     }
 
-    private fun createTargetAction(targetScreen: String): Action {
+    private fun createTargetAction(targetScreen: String, studentId: String? = null): Action {
+        val params = mutableListOf<ActionParameters.Pair<*>>(
+            targetScreenKey to targetScreen
+        )
+        if (!studentId.isNullOrBlank()) {
+            params.add(studentIdKey to studentId)
+        }
         return actionStartActivity<MainActivity>(
-            actionParametersOf(targetScreenKey to targetScreen)
+            actionParametersOf(*params.toTypedArray())
         )
     }
 
     companion object {
         val isRefreshingKey = booleanPreferencesKey("is_refreshing")
         val targetScreenKey = ActionParameters.Key<String>("target_screen")
+        val studentIdKey = ActionParameters.Key<String>("selected_student_id")
 
         suspend fun updateAll(context: Context) {
             val manager = GlanceAppWidgetManager(context)

@@ -94,7 +94,7 @@ class BadgeWidget : GlanceAppWidget() {
                 context = context,
                 darkModeSetting = darkMode
             ) {
-                BadgeContent(widgetState, isRefreshing, isDark)
+                BadgeContent(widgetState, isRefreshing, isDark, selectedStudentId)
             }
         }
     }
@@ -103,7 +103,8 @@ class BadgeWidget : GlanceAppWidget() {
     private fun BadgeContent(
         state: AttendanceWidgetState?,
         isRefreshing: Boolean,
-        isDark: Boolean
+        isDark: Boolean,
+        studentId: String?
     ) {
         val surfaceBg = if (isDark) Color(0xFF09090B) else Color(0xFFFFFFFF)
         val onSurfaceColor = if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B)
@@ -130,7 +131,7 @@ class BadgeWidget : GlanceAppWidget() {
                         fontSize = 11.sp,
                         color = ColorProvider(onSurfaceVariantColor)
                     ),
-                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD"))
+                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId))
                 )
             } else {
                 val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
@@ -143,7 +144,7 @@ class BadgeWidget : GlanceAppWidget() {
                         .background(ColorProvider(statusBgColor))
                         .cornerRadius(10.dp)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .clickable(createTargetAction("DASHBOARD")),
+                        .clickable(createTargetAction("DASHBOARD", studentId)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -159,7 +160,7 @@ class BadgeWidget : GlanceAppWidget() {
                 Spacer(modifier = GlanceModifier.width(8.dp))
 
                 Column(
-                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD")),
+                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val nameStr = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
@@ -260,15 +261,22 @@ class BadgeWidget : GlanceAppWidget() {
         }
     }
 
-    private fun createTargetAction(targetScreen: String): Action {
+    private fun createTargetAction(targetScreen: String, studentId: String? = null): Action {
+        val params = mutableListOf<ActionParameters.Pair<*>>(
+            targetScreenKey to targetScreen
+        )
+        if (!studentId.isNullOrBlank()) {
+            params.add(studentIdKey to studentId)
+        }
         return actionStartActivity<MainActivity>(
-            actionParametersOf(targetScreenKey to targetScreen)
+            actionParametersOf(*params.toTypedArray())
         )
     }
 
     companion object {
         val isRefreshingKey = booleanPreferencesKey("badge_is_refreshing")
         val targetScreenKey = ActionParameters.Key<String>("target_screen")
+        val studentIdKey = ActionParameters.Key<String>("selected_student_id")
 
         suspend fun updateAll(context: Context) {
             val manager = GlanceAppWidgetManager(context)
