@@ -16,6 +16,7 @@ import com.attendance.app.ui.attendance.AttendanceTableScreen
 import com.attendance.app.ui.timetable.TimetableScreen
 import com.attendance.app.ui.settings.SettingsScreen
 import com.attendance.app.ui.calendar.AttendanceCalendarScreen
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -46,6 +47,10 @@ fun MainNavigation(initialTarget: String? = null) {
         }
     }
 
+    BackHandler(enabled = backStack.size > 1) {
+        popBack()
+    }
+
     LaunchedEffect(initialTarget, isLoggedIn) {
         if (isLoggedIn && initialTarget != null) {
             when (initialTarget) {
@@ -65,21 +70,21 @@ fun MainNavigation(initialTarget: String? = null) {
         onBack = { popBack() },
         transitionSpec = {
             slideInHorizontally(
-                initialOffsetX = { fullWidth -> fullWidth / 4 },
+                initialOffsetX = { fullWidth -> fullWidth },
                 animationSpec = tween(300, easing = FastOutSlowInEasing)
             ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
             slideOutHorizontally(
-                targetOffsetX = { fullWidth -> -fullWidth / 4 },
+                targetOffsetX = { fullWidth -> -fullWidth / 3 },
                 animationSpec = tween(300, easing = FastOutSlowInEasing)
             ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
         },
         popTransitionSpec = {
             slideInHorizontally(
-                initialOffsetX = { fullWidth -> -fullWidth / 4 },
+                initialOffsetX = { fullWidth -> -fullWidth / 3 },
                 animationSpec = tween(300, easing = FastOutSlowInEasing)
             ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
             slideOutHorizontally(
-                targetOffsetX = { fullWidth -> fullWidth / 4 },
+                targetOffsetX = { fullWidth -> fullWidth },
                 animationSpec = tween(300, easing = FastOutSlowInEasing)
             ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
         },
