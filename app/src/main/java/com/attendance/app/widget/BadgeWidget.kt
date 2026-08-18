@@ -182,7 +182,7 @@ class BadgeWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.width(8.dp))
 
-                // Center: 2-Line Column (Line 1: Name, Line 2: Skip info + Today sequence)
+                // Center: 2-Line Column (Line 1: Name • Skip status, Line 2: Today: Sequence)
                 Column(
                     modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId)),
                     verticalAlignment = Alignment.CenterVertically
@@ -201,20 +201,35 @@ class BadgeWidget : GlanceAppWidget() {
                         else -> onSurfaceVariantColor
                     }
 
-                    // Line 1: Student Name
-                    Text(
-                        text = nameStr,
-                        style = TextStyle(
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(onSurfaceColor)
-                        ),
-                        maxLines = 1
-                    )
+                    // Line 1: Student Name • Skip status
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = GlanceModifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = nameStr,
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(onSurfaceColor)
+                            ),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = GlanceModifier.width(4.dp))
+                        Text(
+                            text = "• $skipText",
+                            style = TextStyle(
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(skipColor)
+                            ),
+                            maxLines = 1
+                        )
+                    }
 
                     Spacer(modifier = GlanceModifier.height(1.dp))
 
-                    // Line 2: Skip Status • Today's Sequence
+                    // Line 2: Today's Sequence
                     val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
                         state.todayAttendanceTimeline.joinToString("") { status ->
                             when (status) {
@@ -227,67 +242,42 @@ class BadgeWidget : GlanceAppWidget() {
                         }
                     } else "No classes"
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = skipText,
-                            style = TextStyle(
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(skipColor)
-                            ),
-                            maxLines = 1
-                        )
-                        Text(
-                            text = " • $todaySeq",
-                            style = TextStyle(
-                                fontSize = 9.sp,
-                                color = ColorProvider(onSurfaceVariantColor)
-                            ),
-                            maxLines = 1
-                        )
-                    }
+                    val todayLabel = if (isWide) "Today's Attendance: $todaySeq" else "Today: $todaySeq"
+
+                    Text(
+                        text = todayLabel,
+                        style = TextStyle(
+                            fontSize = 9.sp,
+                            color = ColorProvider(onSurfaceVariantColor)
+                        ),
+                        maxLines = 1
+                    )
                 }
 
                 Spacer(modifier = GlanceModifier.width(6.dp))
 
-                // Right: Last sync time (if available) + Refresh Button (Vertically Centered)
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalAlignment = Alignment.CenterVertically
+                // Far Right: Refresh Button
+                Box(
+                    modifier = GlanceModifier
+                        .size(20.dp)
+                        .clickable(actionRunCallback<BadgeRefreshCallback>()),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (state.lastUpdated.isNotEmpty()) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            color = ColorProvider(onSurfaceColor),
+                            modifier = GlanceModifier.size(12.dp)
+                        )
+                    } else {
                         Text(
-                            text = state.lastUpdated,
+                            text = "↻",
                             style = TextStyle(
-                                fontSize = 7.sp,
-                                color = ColorProvider(onSurfaceVariantColor)
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(onSurfaceColor),
+                                textAlign = TextAlign.Center
                             )
                         )
-                        Spacer(modifier = GlanceModifier.height(1.dp))
-                    }
-
-                    Box(
-                        modifier = GlanceModifier
-                            .size(20.dp)
-                            .clickable(actionRunCallback<BadgeRefreshCallback>()),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isRefreshing) {
-                            CircularProgressIndicator(
-                                color = ColorProvider(onSurfaceColor),
-                                modifier = GlanceModifier.size(11.dp)
-                            )
-                        } else {
-                            Text(
-                                text = "↻",
-                                style = TextStyle(
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ColorProvider(onSurfaceColor),
-                                    textAlign = TextAlign.Center
-                                )
-                            )
-                        }
                     }
                 }
             }

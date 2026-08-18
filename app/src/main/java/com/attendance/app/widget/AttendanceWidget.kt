@@ -149,91 +149,95 @@ class AttendanceWidget : GlanceAppWidget() {
                 val statusBgColor = if (isCritical) (if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)) else (if (isDark) Color(0xFF064E3B) else Color(0xFFD1FAE5))
                 val statusBadgeTextColor = if (isCritical) (if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)) else (if (isDark) Color(0xFF34D399) else Color(0xFF059669))
 
-                // 1. TOP SECTION: Attendance Percentage & Refresh Button Row
+                // 1. TOP SECTION: Student Name, Timestamp, Percentage & Refresh Row
+                val headerTitle = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
+
+                // Top Line: Student Name (Left) | Last Updated + Refresh (Right)
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
+                    Text(
+                        text = headerTitle,
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(onSurfaceColor)
+                        ),
+                        maxLines = 1,
                         modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId))
-                    ) {
-                        val headerTitle = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
+                    )
+
+                    if (state.lastUpdated.isNotEmpty()) {
                         Text(
-                            text = headerTitle,
+                            text = state.lastUpdated,
                             style = TextStyle(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(onSurfaceColor)
-                            ),
-                            maxLines = 1
-                        )
-                        Spacer(modifier = GlanceModifier.height(1.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
-                                style = TextStyle(
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ColorProvider(statusColor)
-                                )
+                                fontSize = 9.sp,
+                                color = ColorProvider(onSurfaceVariantColor)
                             )
-                            Spacer(modifier = GlanceModifier.width(6.dp))
-                            Box(
-                                modifier = GlanceModifier
-                                    .background(ColorProvider(statusBgColor))
-                                    .cornerRadius(6.dp)
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (isCritical) "CRITICAL" else "SAFE",
-                                    style = TextStyle(
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ColorProvider(statusBadgeTextColor)
-                                    )
-                                )
-                            }
-                        }
+                        )
+                        Spacer(modifier = GlanceModifier.width(6.dp))
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                    // Refresh Button
+                    Box(
+                        modifier = GlanceModifier
+                            .size(24.dp)
+                            .clickable(actionRunCallback<AttendanceRefreshCallback>()),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (state.lastUpdated.isNotEmpty()) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                color = ColorProvider(onSurfaceColor),
+                                modifier = GlanceModifier.size(14.dp)
+                            )
+                        } else {
                             Text(
-                                text = state.lastUpdated,
+                                text = "↻",
                                 style = TextStyle(
-                                    fontSize = 9.sp,
-                                    color = ColorProvider(onSurfaceVariantColor)
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorProvider(onSurfaceVariantColor),
+                                    textAlign = TextAlign.Center
                                 )
                             )
-                            Spacer(modifier = GlanceModifier.width(6.dp))
                         }
+                    }
+                }
 
-                        // Refresh Button
-                        Box(
-                            modifier = GlanceModifier
-                                .size(24.dp)
-                                .clickable(actionRunCallback<AttendanceRefreshCallback>()),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isRefreshing) {
-                                CircularProgressIndicator(
-                                    color = ColorProvider(onSurfaceColor),
-                                    modifier = GlanceModifier.size(14.dp)
-                                )
-                            } else {
-                                Text(
-                                    text = "↻",
-                                    style = TextStyle(
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ColorProvider(onSurfaceVariantColor),
-                                        textAlign = TextAlign.Center
-                                    )
-                                )
-                            }
-                        }
+                Spacer(modifier = GlanceModifier.height(2.dp))
+
+                // Second Line: Percentage + Status Badge
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth().clickable(createTargetAction("DASHBOARD", studentId)),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
+                        style = TextStyle(
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(statusColor)
+                        )
+                    )
+
+                    Spacer(modifier = GlanceModifier.width(8.dp))
+
+                    Box(
+                        modifier = GlanceModifier
+                            .background(ColorProvider(statusBgColor))
+                            .cornerRadius(6.dp)
+                            .padding(horizontal = 7.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isCritical) "CRITICAL" else "SAFE",
+                            style = TextStyle(
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(statusBadgeTextColor)
+                            )
+                        )
                     }
                 }
 
