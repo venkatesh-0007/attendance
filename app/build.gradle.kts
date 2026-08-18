@@ -13,8 +13,8 @@ android {
         applicationId = "com.attendance.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 102
-        versionName = "1.2"
+        versionCode = 103
+        versionName = "1.3"
     }
 
     buildTypes {
@@ -82,8 +82,15 @@ tasks.register<Copy>("copyApkToReleasesV12") {
     rename { "Attendance-v1.2-debug.apk" }
 }
 
+tasks.register<Copy>("copyApkToReleasesV13") {
+    from(layout.buildDirectory.dir("outputs/apk/debug"))
+    include("*.apk")
+    into(releasesDir)
+    rename { "Attendance-v1.3-debug.apk" }
+}
+
 afterEvaluate {
-    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToReleases", "copyApkToReleasesDefault", "copyApkToReleasesV1", "copyApkToReleasesV11", "copyApkToReleasesV12")
+    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToReleases", "copyApkToReleasesDefault", "copyApkToReleasesV1", "copyApkToReleasesV11", "copyApkToReleasesV12", "copyApkToReleasesV13")
 }
 
 
