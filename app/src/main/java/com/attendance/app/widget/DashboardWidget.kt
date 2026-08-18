@@ -595,14 +595,6 @@ class DashboardWidget : GlanceAppWidget() {
 
 class DashboardRefreshCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
-            prefs.toMutablePreferences().apply {
-                this[DashboardWidget.isRefreshingKey] = true
-            }
-        }
-        DashboardWidget().update(context, glanceId)
-
-        val request = OneTimeWorkRequestBuilder<SyncWorker>().build()
-        WorkManager.getInstance(context).enqueue(request)
+        WidgetRefreshHelper.triggerRefresh(context)
     }
 }

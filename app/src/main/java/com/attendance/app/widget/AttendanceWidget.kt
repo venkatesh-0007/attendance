@@ -159,7 +159,7 @@ class AttendanceWidget : GlanceAppWidget() {
                         Text(
                             text = headerTitle,
                             style = TextStyle(
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ColorProvider(onSurfaceColor)
                             ),
@@ -176,28 +176,43 @@ class AttendanceWidget : GlanceAppWidget() {
                         )
                     }
 
-                    // Refresh Button
-                    Box(
-                        modifier = GlanceModifier
-                            .size(24.dp)
-                            .clickable(actionRunCallback<AttendanceRefreshCallback>()),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (isRefreshing) {
-                            CircularProgressIndicator(
-                                color = ColorProvider(onSurfaceColor),
-                                modifier = GlanceModifier.size(14.dp)
-                            )
-                        } else {
+                        if (state.lastUpdated.isNotEmpty()) {
                             Text(
-                                text = "↻",
+                                text = state.lastUpdated,
                                 style = TextStyle(
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ColorProvider(onSurfaceVariantColor),
-                                    textAlign = TextAlign.Center
+                                    fontSize = 9.sp,
+                                    color = ColorProvider(onSurfaceVariantColor)
                                 )
                             )
+                            Spacer(modifier = GlanceModifier.width(6.dp))
+                        }
+
+                        // Refresh Button
+                        Box(
+                            modifier = GlanceModifier
+                                .size(24.dp)
+                                .clickable(actionRunCallback<AttendanceRefreshCallback>()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isRefreshing) {
+                                CircularProgressIndicator(
+                                    color = ColorProvider(onSurfaceColor),
+                                    modifier = GlanceModifier.size(14.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = "↻",
+                                    style = TextStyle(
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ColorProvider(onSurfaceVariantColor),
+                                        textAlign = TextAlign.Center
+                                    )
+                                )
+                            }
                         }
                     }
                 }
@@ -223,7 +238,7 @@ class AttendanceWidget : GlanceAppWidget() {
                         .fillMaxWidth()
                         .background(ColorProvider(skipBg))
                         .cornerRadius(14.dp)
-                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                        .padding(horizontal = 12.dp, vertical = 9.dp)
                         .clickable(createTargetAction("PREDICTION", studentId)),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -234,19 +249,19 @@ class AttendanceWidget : GlanceAppWidget() {
                         Text(
                             text = mainNumberStr,
                             style = TextStyle(
-                                fontSize = 20.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ColorProvider(skipTextColor)
                             )
                         )
 
-                        Spacer(modifier = GlanceModifier.width(8.dp))
+                        Spacer(modifier = GlanceModifier.width(10.dp))
 
                         Column(modifier = GlanceModifier.defaultWeight()) {
                             Text(
                                 text = titleStr,
                                 style = TextStyle(
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = ColorProvider(skipTextColor)
                                 )
@@ -255,7 +270,7 @@ class AttendanceWidget : GlanceAppWidget() {
                             Text(
                                 text = subtitleStr,
                                 style = TextStyle(
-                                    fontSize = 8.sp,
+                                    fontSize = 9.sp,
                                     color = ColorProvider(skipSubTextColor)
                                 )
                             )
@@ -271,19 +286,19 @@ class AttendanceWidget : GlanceAppWidget() {
                         .fillMaxWidth()
                         .background(ColorProvider(cardBg))
                         .cornerRadius(14.dp)
-                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                        .padding(horizontal = 12.dp, vertical = 9.dp)
                         .clickable(createTargetAction("TODAYS_REGISTER", studentId))
                 ) {
                     Column(modifier = GlanceModifier.fillMaxWidth()) {
                         Text(
                             text = "Today's Attendance",
                             style = TextStyle(
-                                fontSize = 9.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ColorProvider(onSurfaceVariantColor)
                             )
                         )
-                        Spacer(modifier = GlanceModifier.height(4.dp))
+                        Spacer(modifier = GlanceModifier.height(5.dp))
 
                         val rawTimeline = state.todayAttendanceTimeline
                         if (rawTimeline.isEmpty()) {
@@ -302,22 +317,17 @@ class AttendanceWidget : GlanceAppWidget() {
 
                             Row(
                                 modifier = GlanceModifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.Start,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val chipSizeDp = if (fixedCount >= 8) 12 else 14
-                                val fontSize = if (fixedCount >= 8) 7.sp else 8.sp
-
-                                fixedTimeline.forEachIndexed { index, status ->
-                                    Box(
-                                        modifier = GlanceModifier.defaultWeight(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CompactChip(
-                                            status = status,
-                                            isDark = isDark,
-                                            chipSizeDp = chipSizeDp,
-                                            fontSize = fontSize
-                                        )
+                                fixedTimeline.forEachIndexed { idx, status ->
+                                    CompactChip(
+                                        status = status,
+                                        isDark = isDark,
+                                        chipSizeDp = 18
+                                    )
+                                    if (idx < fixedTimeline.size - 1) {
+                                        Spacer(modifier = GlanceModifier.defaultWeight())
                                     }
                                 }
                             }

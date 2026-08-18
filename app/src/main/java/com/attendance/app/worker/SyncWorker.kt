@@ -27,8 +27,10 @@ class SyncWorker @AssistedInject constructor(
             return@withContext Result.retry()
         }
 
-        if (!prefs.isCurrentlyInActiveHours()) {
-            // Outside configured college active hours (e.g. 9 AM - 4 PM) -> skip sync execution to save battery & data
+        val isForceSync = inputData.getBoolean("FORCE_SYNC", false)
+
+        if (!isForceSync && !prefs.isCurrentlyInActiveHours()) {
+            // Outside configured college active hours (e.g. 9 AM - 4 PM) -> skip background auto-sync execution
             return@withContext Result.success()
         }
 

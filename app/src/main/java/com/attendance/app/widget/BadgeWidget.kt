@@ -120,79 +120,149 @@ class BadgeWidget : GlanceAppWidget() {
             .cornerRadius(18.dp)
             .padding(horizontal = 10.dp, vertical = 6.dp)
 
-        Row(
+        Column(
             modifier = rootModifier,
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (state == null) {
-                Text(
-                    text = if (isRefreshing) "Refreshing..." else "Tap to login",
-                    style = TextStyle(
-                        fontSize = 11.sp,
-                        color = ColorProvider(onSurfaceVariantColor)
-                    ),
-                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId))
-                )
-            } else {
-                val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
-                val statusColor = if (isCritical) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
-                val statusBgColor = if (isCritical) (if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)) else (if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5))
-
-                // Left: Pill badge showing percentage
-                Box(
-                    modifier = GlanceModifier
-                        .background(ColorProvider(statusBgColor))
-                        .cornerRadius(10.dp)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .clickable(createTargetAction("DASHBOARD", studentId)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
-                        style = TextStyle(
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(statusColor)
-                        )
-                    )
-                }
-
-                Spacer(modifier = GlanceModifier.width(8.dp))
-
-                Column(
-                    modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId)),
+                Row(
+                    modifier = GlanceModifier.fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val nameStr = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
-
-                    val skipText = when {
-                        state.periodsCanSkip > 0 -> if (isWide) "${state.periodsCanSkip} periods skip" else "${state.periodsCanSkip} skip"
-                        state.periodsNeedToAttend > 0 -> "Need ${state.periodsNeedToAttend}"
-                        else -> "On target"
-                    }
-
-                    val skipColor = when {
-                        state.periodsCanSkip > 0 -> if (isDark) Color(0xFF34D399) else Color(0xFF059669)
-                        state.periodsNeedToAttend > 0 -> if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
-                        else -> onSurfaceVariantColor
-                    }
-
-                    // Line 1: Name + Skip info
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = GlanceModifier.fillMaxWidth()
+                    Text(
+                        text = if (isRefreshing) "Refreshing..." else "Tap to login",
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            color = ColorProvider(onSurfaceVariantColor)
+                        ),
+                        modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId))
+                    )
+                    Box(
+                        modifier = GlanceModifier
+                            .size(24.dp)
+                            .clickable(actionRunCallback<BadgeRefreshCallback>()),
+                        contentAlignment = Alignment.Center
                     ) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                color = ColorProvider(onSurfaceColor),
+                                modifier = GlanceModifier.size(12.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "↻",
+                                style = TextStyle(
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorProvider(onSurfaceColor),
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+                        }
+                    }
+                }
+            } else {
+                val nameStr = if (state.studentName.isNotBlank()) state.studentName else "Attendance"
+
+                // 1. TOP HEADER ROW: Name Top-Left, Last Sync Time & Refresh Top-Right
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth().clickable(createTargetAction("DASHBOARD", studentId)),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = nameStr,
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(onSurfaceColor)
+                        ),
+                        maxLines = 1,
+                        modifier = GlanceModifier.defaultWeight()
+                    )
+
+                    if (state.lastUpdated.isNotEmpty()) {
                         Text(
-                            text = nameStr,
+                            text = state.lastUpdated,
                             style = TextStyle(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(onSurfaceColor)
-                            ),
-                            maxLines = 1,
-                            modifier = GlanceModifier.defaultWeight()
+                                fontSize = 8.sp,
+                                color = ColorProvider(onSurfaceVariantColor)
+                            )
                         )
                         Spacer(modifier = GlanceModifier.width(4.dp))
+                    }
+
+                    Box(
+                        modifier = GlanceModifier
+                            .size(18.dp)
+                            .clickable(actionRunCallback<BadgeRefreshCallback>()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                color = ColorProvider(onSurfaceColor),
+                                modifier = GlanceModifier.size(10.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "↻",
+                                style = TextStyle(
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorProvider(onSurfaceColor),
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = GlanceModifier.height(2.dp))
+
+                // 2. BOTTOM BODY ROW: Percentage Pill Left, Skip info & Today's sequence Right
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth().clickable(createTargetAction("DASHBOARD", studentId)),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
+                    val statusColor = if (isCritical) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
+                    val statusBgColor = if (isCritical) (if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)) else (if (isDark) Color(0xFF18181B) else Color(0xFFF4F4F5))
+
+                    // Left: Percentage Pill
+                    Box(
+                        modifier = GlanceModifier
+                            .background(ColorProvider(statusBgColor))
+                            .cornerRadius(8.dp)
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
+                            style = TextStyle(
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(statusColor)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = GlanceModifier.width(8.dp))
+
+                    Column(
+                        modifier = GlanceModifier.defaultWeight(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val skipText = when {
+                            state.periodsCanSkip > 0 -> if (isWide) "${state.periodsCanSkip} periods skip" else "${state.periodsCanSkip} skip"
+                            state.periodsNeedToAttend > 0 -> "Need ${state.periodsNeedToAttend}"
+                            else -> "On target"
+                        }
+
+                        val skipColor = when {
+                            state.periodsCanSkip > 0 -> if (isDark) Color(0xFF34D399) else Color(0xFF059669)
+                            state.periodsNeedToAttend > 0 -> if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                            else -> onSurfaceVariantColor
+                        }
+
                         Text(
                             text = skipText,
                             style = TextStyle(
@@ -202,60 +272,30 @@ class BadgeWidget : GlanceAppWidget() {
                             ),
                             maxLines = 1
                         )
-                    }
 
-                    Spacer(modifier = GlanceModifier.height(1.dp))
-
-                    // Line 2: Today's Sequence
-                    val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
-                        state.todayAttendanceTimeline.joinToString("") { status ->
-                            when (status) {
-                                AttendanceStatus.PRESENT -> "P"
-                                AttendanceStatus.ABSENT -> "A"
-                                AttendanceStatus.HOLIDAY -> "H"
-                                AttendanceStatus.LEAVE -> "L"
-                                AttendanceStatus.UPCOMING -> "-"
+                        val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
+                            state.todayAttendanceTimeline.joinToString("") { status ->
+                                when (status) {
+                                    AttendanceStatus.PRESENT -> "P"
+                                    AttendanceStatus.ABSENT -> "A"
+                                    AttendanceStatus.HOLIDAY -> "H"
+                                    AttendanceStatus.LEAVE -> "L"
+                                    AttendanceStatus.UPCOMING -> "-"
+                                }
                             }
-                        }
-                    } else "No classes"
+                        } else "No classes"
 
-                    val todayLabel = if (isWide) "Today's Timeline: $todaySeq" else "Today: $todaySeq"
+                        val todayLabel = if (isWide) "Today's Timeline: $todaySeq" else "Today: $todaySeq"
 
-                    Text(
-                        text = todayLabel,
-                        style = TextStyle(
-                            fontSize = 9.sp,
-                            color = ColorProvider(onSurfaceVariantColor)
-                        ),
-                        maxLines = 1
-                    )
-                }
-            }
-
-            Spacer(modifier = GlanceModifier.width(4.dp))
-
-            // Refresh Button on Right
-            Box(
-                modifier = GlanceModifier
-                    .size(24.dp)
-                    .clickable(actionRunCallback<BadgeRefreshCallback>()),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isRefreshing) {
-                    CircularProgressIndicator(
-                        color = ColorProvider(onSurfaceColor),
-                        modifier = GlanceModifier.size(12.dp)
-                    )
-                } else {
-                    Text(
-                        text = "↻",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(onSurfaceColor),
-                            textAlign = TextAlign.Center
+                        Text(
+                            text = todayLabel,
+                            style = TextStyle(
+                                fontSize = 9.sp,
+                                color = ColorProvider(onSurfaceVariantColor)
+                            ),
+                            maxLines = 1
                         )
-                    )
+                    }
                 }
             }
         }
@@ -295,14 +335,6 @@ class BadgeWidget : GlanceAppWidget() {
 
 class BadgeRefreshCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
-            prefs.toMutablePreferences().apply {
-                this[BadgeWidget.isRefreshingKey] = true
-            }
-        }
-        BadgeWidget().update(context, glanceId)
-
-        val request = OneTimeWorkRequestBuilder<SyncWorker>().build()
-        WorkManager.getInstance(context).enqueue(request)
+        WidgetRefreshHelper.triggerRefresh(context)
     }
 }
