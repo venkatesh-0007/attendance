@@ -182,7 +182,7 @@ class BadgeWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.width(8.dp))
 
-                // Center: 2-Line Column with Name/Skip on Line 1, Today's Sequence on Line 2
+                // Center: 2-Line Column (Line 1: Name, Line 2: Skip info + Today sequence)
                 Column(
                     modifier = GlanceModifier.defaultWeight().clickable(createTargetAction("DASHBOARD", studentId)),
                     verticalAlignment = Alignment.CenterVertically
@@ -201,35 +201,20 @@ class BadgeWidget : GlanceAppWidget() {
                         else -> onSurfaceVariantColor
                     }
 
-                    // Line 1: Name • Skip status
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = GlanceModifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = nameStr,
-                            style = TextStyle(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(onSurfaceColor)
-                            ),
-                            maxLines = 1
-                        )
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-                        Text(
-                            text = "• $skipText",
-                            style = TextStyle(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(skipColor)
-                            ),
-                            maxLines = 1
-                        )
-                    }
+                    // Line 1: Student Name
+                    Text(
+                        text = nameStr,
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(onSurfaceColor)
+                        ),
+                        maxLines = 1
+                    )
 
                     Spacer(modifier = GlanceModifier.height(1.dp))
 
-                    // Line 2: Today's Sequence
+                    // Line 2: Skip Status • Today's Sequence
                     val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
                         state.todayAttendanceTimeline.joinToString("") { status ->
                             when (status) {
@@ -242,16 +227,25 @@ class BadgeWidget : GlanceAppWidget() {
                         }
                     } else "No classes"
 
-                    val todayLabel = if (isWide) "Today's Attendance: $todaySeq" else "Today: $todaySeq"
-
-                    Text(
-                        text = todayLabel,
-                        style = TextStyle(
-                            fontSize = 9.sp,
-                            color = ColorProvider(onSurfaceVariantColor)
-                        ),
-                        maxLines = 1
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = skipText,
+                            style = TextStyle(
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(skipColor)
+                            ),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = " • $todaySeq",
+                            style = TextStyle(
+                                fontSize = 9.sp,
+                                color = ColorProvider(onSurfaceVariantColor)
+                            ),
+                            maxLines = 1
+                        )
+                    }
                 }
 
                 Spacer(modifier = GlanceModifier.width(6.dp))

@@ -146,6 +146,8 @@ class AttendanceWidget : GlanceAppWidget() {
             } else {
                 val isCritical = state.attendanceStatus == OverallAttendanceStatus.CRITICAL
                 val statusColor = if (isCritical) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626)) else onSurfaceColor
+                val statusBgColor = if (isCritical) (if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)) else (if (isDark) Color(0xFF064E3B) else Color(0xFFD1FAE5))
+                val statusBadgeTextColor = if (isCritical) (if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)) else (if (isDark) Color(0xFF34D399) else Color(0xFF059669))
 
                 // 1. TOP SECTION: Attendance Percentage & Refresh Button Row
                 Row(
@@ -166,14 +168,32 @@ class AttendanceWidget : GlanceAppWidget() {
                             maxLines = 1
                         )
                         Spacer(modifier = GlanceModifier.height(1.dp))
-                        Text(
-                            text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
-                            style = TextStyle(
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(statusColor)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = String.format(Locale.getDefault(), "%.1f%%", state.attendancePercentage),
+                                style = TextStyle(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorProvider(statusColor)
+                                )
                             )
-                        )
+                            Spacer(modifier = GlanceModifier.width(6.dp))
+                            Box(
+                                modifier = GlanceModifier
+                                    .background(ColorProvider(statusBgColor))
+                                    .cornerRadius(6.dp)
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (isCritical) "CRITICAL" else "SAFE",
+                                    style = TextStyle(
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ColorProvider(statusBadgeTextColor)
+                                    )
+                                )
+                            }
+                        }
                     }
 
                     Row(
@@ -246,14 +266,25 @@ class AttendanceWidget : GlanceAppWidget() {
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = GlanceModifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = mainNumberStr,
-                            style = TextStyle(
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(skipTextColor)
+                        val badgeBg = if (isCanSkip) (if (isDark) Color(0xFF064E3B) else Color(0xFFD1FAE5)) else (if (isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2))
+                        val badgeTextClr = if (isCanSkip) (if (isDark) Color(0xFF34D399) else Color(0xFF059669)) else (if (isDark) Color(0xFFF87171) else Color(0xFFDC2626))
+
+                        Box(
+                            modifier = GlanceModifier
+                                .background(ColorProvider(badgeBg))
+                                .cornerRadius(8.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = mainNumberStr,
+                                style = TextStyle(
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorProvider(badgeTextClr)
+                                )
                             )
-                        )
+                        }
 
                         Spacer(modifier = GlanceModifier.width(10.dp))
 
@@ -347,23 +378,23 @@ class AttendanceWidget : GlanceAppWidget() {
     ) {
         val (bg, textColor, symbol) = when (status) {
             AttendanceStatus.PRESENT -> Triple(
-                if (isDark) Color(0xFF27272A) else Color(0xFFE4E4E7),
-                if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B),
+                if (isDark) Color(0xFF064E3B) else Color(0xFFD1FAE5),
+                if (isDark) Color(0xFF34D399) else Color(0xFF059669),
                 "P"
             )
             AttendanceStatus.ABSENT -> Triple(
-                if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626),
-                Color.White,
+                if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2),
+                if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                 "A"
             )
             AttendanceStatus.HOLIDAY -> Triple(
-                if (isDark) Color(0xFF3F3F46) else Color(0xFFD4D4D8),
-                if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B),
+                if (isDark) Color(0xFF1E3A8A) else Color(0xFFDBEAFE),
+                if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
                 "H"
             )
             AttendanceStatus.LEAVE -> Triple(
-                if (isDark) Color(0xFF3F3F46) else Color(0xFFD4D4D8),
-                if (isDark) Color(0xFFFAFAFA) else Color(0xFF09090B),
+                if (isDark) Color(0xFF451A03) else Color(0xFFFFEDD5),
+                if (isDark) Color(0xFFFB923C) else Color(0xFFEA580C),
                 "L"
             )
             AttendanceStatus.UPCOMING -> Triple(
