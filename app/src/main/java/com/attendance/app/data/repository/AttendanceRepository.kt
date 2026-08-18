@@ -23,12 +23,33 @@ class AttendanceRepository(
     private val _attendance = MutableStateFlow<AttendanceResponse?>(null)
     val attendance: StateFlow<AttendanceResponse?> = _attendance.asStateFlow()
 
+    private val _lastUpdated = MutableStateFlow<Long>(0L)
+    val lastUpdated: StateFlow<Long> = _lastUpdated.asStateFlow()
+
+    private val _currentAccount = MutableStateFlow<UserAccount?>(null)
+    val currentAccount: StateFlow<UserAccount?> = _currentAccount.asStateFlow()
+
     init {
         loadCachedData()
     }
 
+    private fun updateStateFlows(studentId: String?) {
+        val id = studentId ?: prefs.studentId
+        if (!id.isNullOrBlank()) {
+            _lastUpdated.value = prefs.getLastUpdated(id)
+            _currentAccount.value = getSavedAccounts().find { it.studentId == id }
+        } else {
+            _lastUpdated.value = 0L
+            _currentAccount.value = null
+        }
+    }
+
     private fun loadCachedData() {
-        val studentId = prefs.studentId ?: return
+        val studentId = prefs.studentId ?: run {
+            updateStateFlows(null)
+            return
+        }
+        updateStateFlows(studentId)
         val cachedJson = prefs.getAttendanceCache(studentId)
         if (!cachedJson.isNullOrBlank()) {
             try {
@@ -51,6 +72,7 @@ class AttendanceRepository(
     private fun saveAccounts(accounts: List<UserAccount>) {
         val jsonStr = json.encodeToString(ListSerializer(UserAccount.serializer()), accounts)
         prefs.accountsJson = jsonStr
+        updateStateFlows(prefs.studentId)
     }
 
     fun switchAccount(studentId: String) {
@@ -76,6 +98,8 @@ class AttendanceRepository(
         
         if (prefs.studentId == studentId) {
             logout()
+        } else {
+            updateStateFlows(prefs.studentId)
         }
     }
 
@@ -127,11 +151,13 @@ class AttendanceRepository(
 
                     // Save to secure preferences
                     val jsonStr = json.encodeToString(AttendanceResponse.serializer(), response)
+                    val now = System.currentTimeMillis()
                     prefs.setAttendanceCache(studentId, jsonStr)
                     prefs.studentId = studentId
                     prefs.password = password
-                    prefs.lastUpdated = System.currentTimeMillis()
+                    prefs.setLastUpdated(studentId, now)
                     _attendance.value = response
+                    updateStateFlows(studentId)
 
                     context?.let { ctx ->
                         com.attendance.app.widget.WidgetUpdater.updateAll(ctx)
@@ -147,6 +173,7 @@ class AttendanceRepository(
     fun logout() {
         prefs.clearCredentials()
         _attendance.value = null
+        updateStateFlows(null)
     }
 
     fun clearCache() {

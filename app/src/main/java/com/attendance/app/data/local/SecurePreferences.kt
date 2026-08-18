@@ -59,8 +59,23 @@ class SecurePreferences(context: Context) {
         set(value) = prefs.edit().putInt(KEY_NOTIFICATION_THRESHOLD, value).apply()
 
     var lastUpdated: Long
-        get() = prefs.getLong(KEY_LAST_UPDATED, 0L)
-        set(value) = prefs.edit().putLong(KEY_LAST_UPDATED, value).apply()
+        get() {
+            val currentId = studentId
+            return if (!currentId.isNullOrBlank()) getLastUpdated(currentId) else prefs.getLong(KEY_LAST_UPDATED, 0L)
+        }
+        set(value) {
+            prefs.edit().putLong(KEY_LAST_UPDATED, value).apply()
+            studentId?.let { id -> setLastUpdated(id, value) }
+        }
+
+    fun getLastUpdated(id: String): Long {
+        val studentTimestamp = prefs.getLong("last_updated_timestamp_" + id, 0L)
+        return if (studentTimestamp > 0L) studentTimestamp else prefs.getLong(KEY_LAST_UPDATED, 0L)
+    }
+
+    fun setLastUpdated(id: String, timestamp: Long) {
+        prefs.edit().putLong(KEY_LAST_UPDATED, timestamp).putLong("last_updated_timestamp_" + id, timestamp).apply()
+    }
 
     var accountsJson: String?
         get() = prefs.getString(KEY_ACCOUNTS_JSON, null)

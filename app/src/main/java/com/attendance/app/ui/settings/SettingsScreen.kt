@@ -41,6 +41,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val attendanceState by viewModel.attendanceStateFlow.collectAsState()
+    val lastUpdated by viewModel.lastUpdated.collectAsState()
     var editingAccountForName by remember { mutableStateOf<UserAccount?>(null) }
 
     editingAccountForName?.let { accountToEdit ->
@@ -267,8 +268,8 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Last Sync Status Card
-                        val lastSyncStr = if (viewModel.lastUpdated > 0) {
-                            SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(viewModel.lastUpdated))
+                        val lastSyncStr = if (lastUpdated > 0) {
+                            SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(lastUpdated))
                         } else {
                             "Never Synced"
                         }
@@ -282,9 +283,9 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = if (viewModel.lastUpdated > 0) Icons.Default.CheckCircle else Icons.Default.Info,
+                                imageVector = if (lastUpdated > 0) Icons.Default.CheckCircle else Icons.Default.Info,
                                 contentDescription = null,
-                                tint = if (viewModel.lastUpdated > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (lastUpdated > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))

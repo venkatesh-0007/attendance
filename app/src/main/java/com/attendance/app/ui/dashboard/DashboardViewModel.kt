@@ -6,8 +6,11 @@ import com.attendance.app.data.local.SecurePreferences
 import com.attendance.app.data.repository.AttendanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -22,18 +25,17 @@ class DashboardViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    val lastUpdated: Long
-        get() = prefs.lastUpdated
+    val lastUpdated: StateFlow<Long> = repository.lastUpdated
 
     val notificationThreshold: Int
         get() = prefs.notificationThreshold
 
-    val currentAccountName: String?
-        get() {
-            val id = prefs.studentId ?: return null
-            val account = repository.getSavedAccounts().find { it.studentId == id }
-            return account?.displayName ?: attendance.value?.studentName ?: attendance.value?.rollNumber
-        }
+    val currentAccountName: StateFlow<String?> = combine(
+        repository.currentAccount,
+        repository.attendance
+    ) { account, attendance ->
+        account?.displayName ?: attendance?.studentName ?: attendance?.rollNumber
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun refresh() {
         val studentId = prefs.studentId ?: return

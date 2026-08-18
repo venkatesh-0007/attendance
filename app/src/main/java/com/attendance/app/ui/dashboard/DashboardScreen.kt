@@ -44,6 +44,8 @@ fun DashboardScreen(
 ) {
     val attendanceState by viewModel.attendance.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val lastUpdated by viewModel.lastUpdated.collectAsState()
+    val currentAccountName by viewModel.currentAccountName.collectAsState()
 
     val scrollState = rememberScrollState()
 
@@ -57,7 +59,7 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                        viewModel.currentAccountName?.let {
+                        currentAccountName?.let {
                             Text(
                                 it,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -96,7 +98,7 @@ fun DashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            viewModel.lastUpdated.takeIf { it > 0 }?.let { timestamp ->
+            lastUpdated.takeIf { it > 0 }?.let { timestamp ->
                 val format = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
                 Text(
                     text = "Last updated: ${format.format(Date(timestamp))}",

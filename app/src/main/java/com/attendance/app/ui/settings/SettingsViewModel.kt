@@ -14,6 +14,7 @@ import com.attendance.app.data.repository.AttendanceRepository
 import com.attendance.app.worker.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -56,8 +57,7 @@ class SettingsViewModel @Inject constructor(
     var isRefreshing by mutableStateOf(false)
         private set
 
-    val lastUpdated: Long
-        get() = prefs.lastUpdated
+    val lastUpdated: StateFlow<Long> = repository.lastUpdated
 
     fun updateDarkMode(mode: String, context: Context) {
         prefs.darkMode = mode
