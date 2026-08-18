@@ -352,18 +352,19 @@ class AttendanceWidget : GlanceAppWidget() {
 
                             Row(
                                 modifier = GlanceModifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.Start,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                fixedTimeline.forEachIndexed { idx, status ->
-                                    CompactChip(
-                                        status = status,
-                                        isDark = isDark,
-                                        chipSizeDp = 14,
-                                        fontSize = 8.sp
-                                    )
-                                    if (idx < fixedTimeline.size - 1) {
-                                        Spacer(modifier = GlanceModifier.defaultWeight())
+                                fixedTimeline.forEach { status ->
+                                    Box(
+                                        modifier = GlanceModifier.defaultWeight(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CompactChip(
+                                            status = status,
+                                            isDark = isDark,
+                                            chipSizeDp = 18,
+                                            fontSize = 9.sp
+                                        )
                                     }
                                 }
                             }
@@ -413,7 +414,7 @@ class AttendanceWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .size(chipSizeDp.dp)
                 .background(ColorProvider(bg))
-                .cornerRadius(4.dp),
+                .cornerRadius(9.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(

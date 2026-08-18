@@ -122,7 +122,7 @@ class BadgeWidget : GlanceAppWidget() {
 
         Column(
             modifier = rootModifier,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
             if (state == null) {
                 Row(
