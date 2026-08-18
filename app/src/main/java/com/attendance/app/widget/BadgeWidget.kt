@@ -172,7 +172,7 @@ class BadgeWidget : GlanceAppWidget() {
                     Text(
                         text = nameStr,
                         style = TextStyle(
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = ColorProvider(onSurfaceColor)
                         ),
@@ -216,9 +216,9 @@ class BadgeWidget : GlanceAppWidget() {
                     }
                 }
 
-                Spacer(modifier = GlanceModifier.height(3.dp))
+                Spacer(modifier = GlanceModifier.defaultWeight())
 
-                // 2. BOTTOM BODY ROW: Percentage Pill (Left), Skip Periods & Today's Attendance (Right)
+                // 2. BOTTOM BODY ROW: Percentage Pill (Left), Skip Periods & Colored Today's Attendance (Right)
                 Row(
                     modifier = GlanceModifier.fillMaxWidth().clickable(createTargetAction("DASHBOARD", studentId)),
                     verticalAlignment = Alignment.CenterVertically
@@ -276,29 +276,49 @@ class BadgeWidget : GlanceAppWidget() {
 
                         Spacer(modifier = GlanceModifier.height(1.dp))
 
-                        // Line 2: Today's Attendance Sequence
-                        val todaySeq = if (state.todayAttendanceTimeline.isNotEmpty()) {
-                            state.todayAttendanceTimeline.joinToString("") { status ->
-                                when (status) {
-                                    AttendanceStatus.PRESENT -> "P"
-                                    AttendanceStatus.ABSENT -> "A"
-                                    AttendanceStatus.HOLIDAY -> "H"
-                                    AttendanceStatus.LEAVE -> "L"
-                                    AttendanceStatus.UPCOMING -> "-"
+                        // Line 2: Today's Attendance Sequence with Individual Status Colors (Green & Red)
+                        if (state.todayAttendanceTimeline.isEmpty()) {
+                            Text(
+                                text = "No classes today",
+                                style = TextStyle(
+                                    fontSize = 9.sp,
+                                    color = ColorProvider(onSurfaceVariantColor)
+                                ),
+                                maxLines = 1
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = GlanceModifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (isWide) "Today's: " else "Today: ",
+                                    style = TextStyle(
+                                        fontSize = 9.sp,
+                                        color = ColorProvider(onSurfaceVariantColor)
+                                    )
+                                )
+
+                                state.todayAttendanceTimeline.forEach { status ->
+                                    val (symbol, color) = when (status) {
+                                        AttendanceStatus.PRESENT -> "P" to (if (isDark) Color(0xFF34D399) else Color(0xFF059669))
+                                        AttendanceStatus.ABSENT -> "A" to (if (isDark) Color(0xFFF87171) else Color(0xFFDC2626))
+                                        AttendanceStatus.HOLIDAY -> "H" to (if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB))
+                                        AttendanceStatus.LEAVE -> "L" to (if (isDark) Color(0xFFFB923C) else Color(0xFFEA580C))
+                                        AttendanceStatus.UPCOMING -> "-" to (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A))
+                                    }
+
+                                    Text(
+                                        text = symbol,
+                                        style = TextStyle(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ColorProvider(color)
+                                        )
+                                    )
                                 }
                             }
-                        } else "No classes"
-
-                        val todayLabel = if (isWide) "Today's Attendance: $todaySeq" else "Today: $todaySeq"
-
-                        Text(
-                            text = todayLabel,
-                            style = TextStyle(
-                                fontSize = 9.sp,
-                                color = ColorProvider(onSurfaceVariantColor)
-                            ),
-                            maxLines = 1
-                        )
+                        }
                     }
                 }
             }
