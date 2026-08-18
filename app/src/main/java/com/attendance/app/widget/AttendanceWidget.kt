@@ -359,7 +359,8 @@ class AttendanceWidget : GlanceAppWidget() {
                                     CompactChip(
                                         status = status,
                                         isDark = isDark,
-                                        chipSizeDp = 18
+                                        chipSizeDp = 14,
+                                        fontSize = 8.sp
                                     )
                                     if (idx < fixedTimeline.size - 1) {
                                         Spacer(modifier = GlanceModifier.defaultWeight())
