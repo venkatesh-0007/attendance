@@ -48,7 +48,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun AttendanceTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     accentColor: Color? = null,
     content: @Composable () -> Unit,
 ) {
