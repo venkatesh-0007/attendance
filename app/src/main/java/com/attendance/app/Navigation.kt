@@ -47,10 +47,6 @@ fun MainNavigation(initialTarget: String? = null) {
         }
     }
 
-    BackHandler(enabled = backStack.size > 1) {
-        popBack()
-    }
-
     LaunchedEffect(initialTarget, isLoggedIn) {
         if (isLoggedIn && initialTarget != null) {
             when (initialTarget) {

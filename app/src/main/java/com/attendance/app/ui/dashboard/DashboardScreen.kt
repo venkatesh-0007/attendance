@@ -122,14 +122,10 @@ fun DashboardScreen(
                     }
                 }
             } else {
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(tween(500)) + slideInVertically(animationSpec = tween(500), initialOffsetY = { 60 })
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
                         val overall = currentData.overallPercentage
                         val threshold = viewModel.notificationThreshold
                         val isBelow = overall < threshold
@@ -403,7 +399,6 @@ fun DashboardScreen(
                             }
                         }
                     }
-                }
             }
         }
     }
