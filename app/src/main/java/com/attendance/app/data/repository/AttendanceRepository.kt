@@ -113,7 +113,11 @@ class AttendanceRepository(
         }
     }
 
-    suspend fun fetchAttendance(studentId: String, password: String): Result<AttendanceResponse> =
+    suspend fun fetchAttendance(
+        studentId: String,
+        password: String,
+        makeActive: Boolean = (prefs.studentId == studentId || prefs.studentId.isNullOrBlank())
+    ): Result<AttendanceResponse> =
         withContext(Dispatchers.IO) {
             try {
                 val rawResponse = api.getAttendance(studentId, password)
@@ -153,11 +157,15 @@ class AttendanceRepository(
                     val jsonStr = json.encodeToString(AttendanceResponse.serializer(), response)
                     val now = System.currentTimeMillis()
                     prefs.setAttendanceCache(studentId, jsonStr)
-                    prefs.studentId = studentId
-                    prefs.password = password
                     prefs.setLastUpdated(studentId, now)
-                    _attendance.value = response
-                    updateStateFlows(studentId)
+
+                    val shouldMakeActive = makeActive || (prefs.studentId == studentId)
+                    if (shouldMakeActive) {
+                        prefs.studentId = studentId
+                        prefs.password = password
+                        _attendance.value = response
+                        updateStateFlows(studentId)
+                    }
 
                     context?.let { ctx ->
                         com.attendance.app.widget.WidgetUpdater.updateAll(ctx)

@@ -49,13 +49,14 @@ class SyncWorker @AssistedInject constructor(
 
         var anySuccess = false
         for (account in accountsToSync) {
-            val result = repository.fetchAttendance(account.studentId, account.password)
+            val isCurrentActive = (account.studentId == prefs.studentId)
+            val result = repository.fetchAttendance(account.studentId, account.password, makeActive = isCurrentActive)
             if (result.isSuccess) {
                 anySuccess = true
                 val response = result.getOrNull()
                 response?.overallPercentage?.let { percentage ->
                     val threshold = prefs.notificationThreshold
-                    if (percentage < threshold && account.studentId == prefs.studentId) {
+                    if (percentage < threshold && isCurrentActive) {
                         NotificationHelper.showLowAttendanceNotification(context, percentage, threshold)
                     }
                 }

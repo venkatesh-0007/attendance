@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.glance.*
 import androidx.glance.action.Action
 import androidx.glance.action.ActionParameters
@@ -52,6 +53,7 @@ class BadgeWidget : GlanceAppWidget() {
         provideContent {
             val widgetPrefs = currentState<Preferences>()
             val isRefreshing = widgetPrefs[isRefreshingKey] ?: false
+            val lastUpdatedTime = widgetPrefs[lastUpdatedKey] ?: 0L
             val securePrefs = remember { SecurePreferences(context) }
             val selectedStudentId = widgetPrefs[SELECTED_STUDENT_ID_KEY] ?: securePrefs.studentId
             val json = remember { Json { ignoreUnknownKeys = true } }
@@ -79,10 +81,12 @@ class BadgeWidget : GlanceAppWidget() {
                 }
             }
 
-            val widgetState: AttendanceWidgetState? = remember(response, securePrefs.lastUpdated, displayName) {
+            val studentLastUpdated = selectedStudentId?.let { securePrefs.getLastUpdated(it) } ?: securePrefs.lastUpdated
+
+            val widgetState: AttendanceWidgetState? = remember(response, studentLastUpdated, displayName, lastUpdatedTime) {
                 response?.toWidgetState(
                     targetThreshold = securePrefs.notificationThreshold.toDouble(),
-                    lastUpdatedMillis = securePrefs.lastUpdated,
+                    lastUpdatedMillis = studentLastUpdated,
                     customName = displayName
                 )
             }
@@ -337,6 +341,7 @@ class BadgeWidget : GlanceAppWidget() {
 
     companion object {
         val isRefreshingKey = booleanPreferencesKey("badge_is_refreshing")
+        val lastUpdatedKey = longPreferencesKey("widget_last_updated_time")
         val targetScreenKey = ActionParameters.Key<String>("target_screen")
         val studentIdKey = ActionParameters.Key<String>("selected_student_id")
 
@@ -347,6 +352,7 @@ class BadgeWidget : GlanceAppWidget() {
                 updateAppWidgetState(context, PreferencesGlanceStateDefinition, id) { prefs ->
                     prefs.toMutablePreferences().apply {
                         this[isRefreshingKey] = false
+                        this[lastUpdatedKey] = System.currentTimeMillis()
                     }
                 }
                 BadgeWidget().update(context, id)

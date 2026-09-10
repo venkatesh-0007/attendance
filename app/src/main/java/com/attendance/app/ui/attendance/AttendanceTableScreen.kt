@@ -89,70 +89,40 @@ fun AttendanceTableScreen(
             val lazyListState = rememberLazyListState()
             val horizontalScrollState = rememberScrollState()
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
                     .background(Color(0xFF0B0F19))
             ) {
                 // -------------------------------------------------------------
-                // 1. LEFT STICKY COLUMN: Subject Names (Smaller 100.dp, fixed to screen)
+                // 1. TOP STICKY HEADER ROW (Subject Header + Date/Summary Headers)
                 // -------------------------------------------------------------
-                Column(
+                Row(
                     modifier = Modifier
-                        .width(100.dp)
-                        .fillMaxHeight()
-                        .background(Color(0xFF111827))
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .background(Color(0xFF1F2937))
                 ) {
+                    // Left sticky subject header
                     GridCell(
                         text = subjectHeader,
                         isHeader = true,
                         alignStart = true,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
+                            .width(100.dp)
+                            .fillMaxHeight()
                             .background(Color(0xFF1F2937))
                     )
 
-                    HorizontalDivider(color = Color(0xFF374151))
+                    VerticalDivider(color = Color(0xFF374151))
 
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        state = lazyListState
-                    ) {
-                        items(rows) { row ->
-                            val subjectName = row.getOrNull(1) ?: ""
-                            GridCell(
-                                text = subjectName,
-                                isHeader = false,
-                                isSubjectName = true,
-                                alignStart = true,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                            )
-                            HorizontalDivider(color = Color(0xFF1F2937))
-                        }
-                    }
-                }
-
-                VerticalDivider(color = Color(0xFF374151))
-
-                // -------------------------------------------------------------
-                // 2. HORIZONTALLY SCROLLABLE DATA GRID (Dates + Atted/Held & %)
-                // Spans from 100.dp to the right edge of the screen!
-                // -------------------------------------------------------------
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .horizontalScroll(horizontalScrollState)
-                ) {
-                    // Header Row: Date Headers followed by Summary Headers
+                    // Horizontally scrollable data headers
                     Row(
                         modifier = Modifier
-                            .height(48.dp)
-                            .background(Color(0xFF1F2937))
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .horizontalScroll(horizontalScrollState)
                     ) {
                         dateHeaders.forEach { headerText ->
                             GridCell(
@@ -174,17 +144,49 @@ fun AttendanceTableScreen(
                             )
                         }
                     }
+                }
 
-                    HorizontalDivider(color = Color(0xFF374151))
+                HorizontalDivider(color = Color(0xFF374151))
 
-                    // LazyColumn for Data Rows
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        state = lazyListState
-                    ) {
-                        items(rows) { row ->
-                            val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
-                            Row(modifier = Modifier.height(48.dp)) {
+                // -------------------------------------------------------------
+                // 2. DATA ROWS: Single LazyColumn ensuring exact vertical alignment
+                // -------------------------------------------------------------
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    state = lazyListState
+                ) {
+                    items(rows) { row ->
+                        val subjectName = row.getOrNull(1) ?: ""
+                        val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            // Left sticky subject name
+                            GridCell(
+                                text = subjectName,
+                                isHeader = false,
+                                isSubjectName = true,
+                                alignStart = true,
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .fillMaxHeight()
+                                    .background(Color(0xFF111827))
+                            )
+
+                            VerticalDivider(color = Color(0xFF374151))
+
+                            // Horizontally scrollable row data
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .horizontalScroll(horizontalScrollState)
+                            ) {
                                 // 1. Date Cells
                                 dateHeaders.forEachIndexed { dateIdx, _ ->
                                     val cellText = dataCells.getOrNull(dateIdx) ?: ""
@@ -210,8 +212,9 @@ fun AttendanceTableScreen(
                                     )
                                 }
                             }
-                            HorizontalDivider(color = Color(0xFF1F2937))
                         }
+
+                        HorizontalDivider(color = Color(0xFF1F2937))
                     }
                 }
             }

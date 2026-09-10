@@ -84,6 +84,16 @@ fun MainNavigation(initialTarget: String? = null) {
                 animationSpec = tween(300, easing = FastOutSlowInEasing)
             ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
         },
+        predictivePopTransitionSpec = { _ ->
+            slideInHorizontally(
+                initialOffsetX = { fullWidth -> -fullWidth / 3 },
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
+            slideOutHorizontally(
+                targetOffsetX = { fullWidth -> fullWidth },
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+        },
         entryProvider = entryProvider {
             entry<Login> {
                 LoginScreen(
