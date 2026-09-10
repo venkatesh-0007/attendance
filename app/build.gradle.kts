@@ -6,6 +6,9 @@ plugins {
   alias(libs.plugins.hilt.android)
 }
 
+val appVersionCode = 105
+val appVersionName = "1.5"
+
 android {
     namespace = "com.attendance.app"
     compileSdk = 36
@@ -13,8 +16,8 @@ android {
         applicationId = "com.attendance.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 105
-        versionName = "1.5"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     buildTypes {
@@ -51,60 +54,18 @@ tasks.register<Copy>("copyApkToReleases") {
     from(layout.buildDirectory.dir("outputs/apk/debug"))
     include("*.apk")
     into(releasesDir)
-    rename { "Attendance-v1-debug.apk" }
+    rename("(.*)", "Attendance-v1.5-debug.apk")
 }
 
 tasks.register<Copy>("copyApkToReleasesDefault") {
     from(layout.buildDirectory.dir("outputs/apk/debug"))
     include("*.apk")
     into(releasesDir)
-    rename { "Attendance-debug.apk" }
-}
-
-tasks.register<Copy>("copyApkToReleasesV1") {
-    from(layout.buildDirectory.dir("outputs/apk/debug"))
-    include("*.apk")
-    into(releasesDir)
-    rename { "Attendance-v1.0-debug.apk" }
-}
-
-tasks.register<Copy>("copyApkToReleasesV11") {
-    from(layout.buildDirectory.dir("outputs/apk/debug"))
-    include("*.apk")
-    into(releasesDir)
-    rename { "Attendance-v1.1-debug.apk" }
-}
-
-tasks.register<Copy>("copyApkToReleasesV12") {
-    from(layout.buildDirectory.dir("outputs/apk/debug"))
-    include("*.apk")
-    into(releasesDir)
-    rename { "Attendance-v1.2-debug.apk" }
-}
-
-tasks.register<Copy>("copyApkToReleasesV13") {
-    from(layout.buildDirectory.dir("outputs/apk/debug"))
-    include("*.apk")
-    into(releasesDir)
-    rename { "Attendance-v1.3-debug.apk" }
-}
-
-tasks.register<Copy>("copyApkToReleasesV14") {
-    from(layout.buildDirectory.dir("outputs/apk/debug"))
-    include("*.apk")
-    into(releasesDir)
-    rename { "Attendance-v1.4-debug.apk" }
-}
-
-tasks.register<Copy>("copyApkToReleasesV15") {
-    from(layout.buildDirectory.dir("outputs/apk/debug"))
-    include("*.apk")
-    into(releasesDir)
-    rename { "Attendance-v1.5-debug.apk" }
+    rename("(.*)", "Attendance-debug.apk")
 }
 
 afterEvaluate {
-    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToReleases", "copyApkToReleasesDefault", "copyApkToReleasesV1", "copyApkToReleasesV11", "copyApkToReleasesV12", "copyApkToReleasesV13", "copyApkToReleasesV14", "copyApkToReleasesV15")
+    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToReleases", "copyApkToReleasesDefault")
 }
 
 
