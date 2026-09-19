@@ -1,6 +1,6 @@
-package com.example.attendance
+package com.attendance.app
 
-import com.example.attendance.data.model.AttendanceResponse
+import com.attendance.app.data.model.AttendanceResponse
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -46,24 +46,24 @@ class AttendanceSerializationTest {
         val response = json.decodeFromString<AttendanceResponse>(payload)
 
         assertNotNull(response)
-        assertEquals(":24L31A4461", response.roll_number)
-        assertNotNull(response.total_info)
-        assertEquals(137, response.total_info?.total_attended)
-        assertEquals(179, response.total_info?.total_held)
-        assertEquals("76.54%", response.total_info?.total_percentage)
+        assertEquals(":24L31A4461", response.rollNumber)
+        assertNotNull(response.totalInfo)
+        assertEquals(137, response.totalInfo?.totalAttended)
+        assertEquals(179, response.totalInfo?.totalHeld)
+        assertEquals("76.54%", response.totalInfo?.totalPercentage)
         assertEquals(76.54, response.overallPercentage, 0.001)
         
         // Subject verification
-        assertEquals(1, response.subjectwise_summary?.size)
-        val subject = response.subjectwise_summary!![0]
-        assertEquals("CNA \u0026 P", subject.subject_name)
+        assertEquals(1, response.subjectwiseSummary?.size)
+        val subject = response.subjectwiseSummary!![0]
+        assertEquals("CNA \u0026 P", subject.subjectName)
         assertEquals("75.0%", subject.percentage)
         assertEquals(75.0, subject.percentageDouble, 0.001)
         
         // Table verification
-        assertNotNull(response.attendance_table)
-        assertEquals(2, response.attendance_table?.headers?.size)
-        assertEquals(1, response.attendance_table?.rows?.size)
+        assertNotNull(response.attendanceTable)
+        assertEquals(2, response.attendanceTable?.headers?.size)
+        assertEquals(1, response.attendanceTable?.rows?.size)
     }
 
     @Test

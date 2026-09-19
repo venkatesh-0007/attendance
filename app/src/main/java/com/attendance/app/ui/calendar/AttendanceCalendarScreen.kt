@@ -42,7 +42,7 @@ fun AttendanceCalendarScreen(
     val currentMonthName = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time) }
 
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val monthCalendar = remember(calendar) {
+    val monthCalendar = remember(calendar, attendanceState) {
         val list = mutableListOf<CalendarDayInfo>()
         val calCopy = calendar.clone() as Calendar
         val currentMonth = calCopy.get(Calendar.MONTH)
@@ -140,7 +140,7 @@ fun AttendanceCalendarScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(monthCalendar) { dayInfo ->
+                items(monthCalendar, key = { it.dayNumber }) { dayInfo ->
                     CalendarDayCell(dayInfo = dayInfo, onClick = { selectedDayInfo = dayInfo })
                 }
             }

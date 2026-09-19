@@ -2,18 +2,17 @@ package com.attendance.app.ui.attendance
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,6 +23,51 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.attendance.app.data.model.CleanTable
+
+// --- Pre-computed, Immutable UI Models for Zero-Jank Rendering ---
+
+@Immutable
+private data class CellUiModel(
+    val text: String,
+    val bgColor: Color,
+    val textColor: Color,
+    val isBold: Boolean,
+    val width: Dp
+)
+
+@Immutable
+private data class SummaryHeaderUiModel(
+    val title: String,
+    val width: Dp
+)
+
+@Immutable
+private data class TableRowUiModel(
+    val subjectName: String,
+    val dateCells: List<CellUiModel>,
+    val summaryCells: List<CellUiModel>
+)
+
+@Immutable
+private data class TableUiModel(
+    val subjectHeader: String,
+    val dateHeaders: List<String>,
+    val summaryHeaders: List<SummaryHeaderUiModel>,
+    val rows: List<TableRowUiModel>
+)
+
+private val SubjectColumnWidth = 104.dp
+private val DateColumnWidth = 62.dp
+private val RowHeight = 48.dp
+
+private val TableBgColor = Color(0xFF0B0F19)
+private val HeaderBgColor = Color(0xFF1F2937)
+private val SubjectColBgColor = Color(0xFF111827)
+private val HeaderDividerColor = Color(0xFF374151)
+private val RowDividerColor = Color(0xFF1F2937)
+private val HeaderTextColor = Color(0xFFF3F4F6)
+private val SubjectTextColor = Color(0xFFE5E7EB)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +77,16 @@ fun AttendanceTableScreen(
     viewModel: AttendanceViewModel = hiltViewModel()
 ) {
     val attendanceState by viewModel.attendance.collectAsState()
-    val table = attendanceState?.attendanceTable
+
+    // Memoize the table cleaning step so regex/filters run only when data changes
+    val cleanTable = remember(attendanceState) {
+        attendanceState?.getCleanTable()
+    }
+
+    // Pre-calculate all cell styles, colors, and layout metrics into an immutable model
+    val tableModel = remember(cleanTable) {
+        cleanTable?.let { buildTableUiModel(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -51,8 +104,7 @@ fun AttendanceTableScreen(
         },
         modifier = modifier
     ) { paddingValues ->
-        val cleanTable = attendanceState?.getCleanTable()
-        if (cleanTable == null || cleanTable.rows.isEmpty()) {
+        if (tableModel == null || tableModel.rows.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -66,34 +118,14 @@ fun AttendanceTableScreen(
                 )
             }
         } else {
-            val headers = cleanTable.headers
-            val rows = cleanTable.rows
-
-            val subjectHeader = headers.getOrNull(1) ?: "Subject"
-            val allDataHeaders = if (headers.size > 2) headers.subList(2, headers.size) else emptyList()
-
-            // Separate Date columns from Summary columns (Atted/Held and %)
-            val summaryHeaderIndices = allDataHeaders.mapIndexedNotNull { idx, h ->
-                val clean = h.trim().lowercase()
-                if (clean.contains("%") || clean.contains("atted") || clean.contains("held")) idx else null
-            }
-
-            val dateHeaders = if (summaryHeaderIndices.isNotEmpty()) {
-                allDataHeaders.filterIndexed { idx, _ -> idx !in summaryHeaderIndices }
-            } else allDataHeaders
-
-            val summaryHeaders = if (summaryHeaderIndices.isNotEmpty()) {
-                allDataHeaders.filterIndexed { idx, _ -> idx in summaryHeaderIndices }
-            } else emptyList()
-
-            val lazyListState = rememberLazyListState()
+            val verticalScrollState = rememberScrollState()
             val horizontalScrollState = rememberScrollState()
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(Color(0xFF0B0F19))
+                    .background(TableBgColor)
             ) {
                 // -------------------------------------------------------------
                 // 1. TOP STICKY HEADER ROW (Subject Header + Date/Summary Headers)
@@ -101,190 +133,248 @@ fun AttendanceTableScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .background(Color(0xFF1F2937))
+                        .height(RowHeight)
+                        .background(HeaderBgColor)
                 ) {
-                    // Left sticky subject header
-                    GridCell(
-                        text = subjectHeader,
-                        isHeader = true,
-                        alignStart = true,
+                    // Pinned top-left corner (Subject header)
+                    Box(
                         modifier = Modifier
-                            .width(100.dp)
+                            .width(SubjectColumnWidth)
                             .fillMaxHeight()
-                            .background(Color(0xFF1F2937))
-                    )
+                            .background(HeaderBgColor)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = tableModel.subjectHeader,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = HeaderTextColor,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-                    VerticalDivider(color = Color(0xFF374151))
+                    VerticalDivider(color = HeaderDividerColor)
 
-                    // Horizontally scrollable data headers
+                    // Horizontally scrollable header data
                     Row(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .horizontalScroll(horizontalScrollState)
                     ) {
-                        dateHeaders.forEach { headerText ->
-                            GridCell(
-                                text = headerText,
-                                isHeader = true,
+                        tableModel.dateHeaders.forEach { headerText ->
+                            Box(
                                 modifier = Modifier
-                                    .width(62.dp)
+                                    .width(DateColumnWidth)
                                     .fillMaxHeight()
-                            )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = headerText,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = HeaderTextColor,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
-                        summaryHeaders.forEach { hText ->
-                            val w = if (hText.contains("%")) 65.dp else 85.dp
-                            GridCell(
-                                text = hText,
-                                isHeader = true,
+
+                        tableModel.summaryHeaders.forEach { summaryHeader ->
+                            Box(
                                 modifier = Modifier
-                                    .width(w)
+                                    .width(summaryHeader.width)
                                     .fillMaxHeight()
-                            )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = summaryHeader.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = HeaderTextColor,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFF374151))
+                HorizontalDivider(color = HeaderDividerColor)
 
                 // -------------------------------------------------------------
-                // 2. DATA ROWS: Single LazyColumn ensuring exact vertical alignment
+                // 2. SCROLLABLE BODY (Unified vertical scroll container)
                 // -------------------------------------------------------------
-                LazyColumn(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    state = lazyListState
+                        .weight(1f)
+                        .verticalScroll(verticalScrollState)
                 ) {
-                    items(rows) { row ->
-                        val subjectName = row.getOrNull(1) ?: ""
-                        val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                        ) {
-                            // Left sticky subject name
-                            GridCell(
-                                text = subjectName,
-                                isHeader = false,
-                                isSubjectName = true,
-                                alignStart = true,
+                    // Pinned Left Column: Subject Names
+                    Column(
+                        modifier = Modifier
+                            .width(SubjectColumnWidth)
+                            .background(SubjectColBgColor)
+                    ) {
+                        tableModel.rows.forEach { row ->
+                            Box(
                                 modifier = Modifier
-                                    .width(100.dp)
-                                    .fillMaxHeight()
-                                    .background(Color(0xFF111827))
-                            )
-
-                            VerticalDivider(color = Color(0xFF374151))
-
-                            // Horizontally scrollable row data
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .horizontalScroll(horizontalScrollState)
+                                    .width(SubjectColumnWidth)
+                                    .height(RowHeight)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                // 1. Date Cells
-                                dateHeaders.forEachIndexed { dateIdx, _ ->
-                                    val cellText = dataCells.getOrNull(dateIdx) ?: ""
-                                    GridCell(
-                                        text = cellText,
-                                        isHeader = false,
-                                        modifier = Modifier
-                                            .width(62.dp)
-                                            .fillMaxHeight()
-                                    )
+                                Text(
+                                    text = row.subjectName,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.sp,
+                                    color = SubjectTextColor,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                            HorizontalDivider(color = RowDividerColor)
+                        }
+                    }
+
+                    VerticalDivider(color = HeaderDividerColor)
+
+                    // Right Data Grid: Attendance Data
+                    // Exactly ONE horizontalScroll modifier for all data rows
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .horizontalScroll(horizontalScrollState)
+                    ) {
+                        Column {
+                            tableModel.rows.forEach { row ->
+                                Row(
+                                    modifier = Modifier.height(RowHeight)
+                                ) {
+                                    row.dateCells.forEach { cell ->
+                                        GridCellBox(cell)
+                                    }
+                                    row.summaryCells.forEach { cell ->
+                                        GridCellBox(cell)
+                                    }
                                 }
-                                // 2. Summary Cells (Atted/Held & %)
-                                summaryHeaderIndices.forEach { sumColIdx ->
-                                    val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
-                                    val cellText = dataCells.getOrNull(sumColIdx) ?: ""
-                                    val w = if (hText.contains("%")) 65.dp else 85.dp
-                                    GridCell(
-                                        text = cellText,
-                                        isHeader = false,
-                                        modifier = Modifier
-                                            .width(w)
-                                            .fillMaxHeight()
-                                    )
-                                }
+                                HorizontalDivider(color = RowDividerColor)
                             }
                         }
-
-                        HorizontalDivider(color = Color(0xFF1F2937))
                     }
                 }
             }
         }
-    }
-}
-
-private fun getColumnWidth(headerText: String): Dp {
-    val clean = headerText.trim().lowercase()
-    return when {
-        clean.contains("held") || clean.contains("atted") -> 85.dp
-        clean.contains("%") -> 60.dp
-        else -> 60.dp
     }
 }
 
 @Composable
-private fun GridCell(
-    text: String,
-    isHeader: Boolean = false,
-    isSubjectName: Boolean = false,
-    alignStart: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    val trimmed = text.trim()
-
-    val (bgColor, textColor) = when {
-        isHeader -> Pair(
-            Color(0xFF1F2937),
-            Color(0xFFF3F4F6)
-        )
-        isSubjectName -> Pair(
-            Color.Transparent,
-            Color(0xFFE5E7EB)
-        )
-        trimmed.startsWith("P") -> Pair(Color(0xFF143823), Color(0xFF00FF87))
-        trimmed.startsWith("A") -> Pair(Color(0xFF3F1717), Color(0xFFFF5252))
-        trimmed.startsWith("H") -> Pair(Color(0xFF17253F), Color(0xFF40C4FF))
-        trimmed.startsWith("L") -> Pair(Color(0xFF2E173F), Color(0xFFE040FB))
-        trimmed.toDoubleOrNull() != null -> {
-            val pct = trimmed.toDouble()
-            if (pct >= 75.0) {
-                Pair(Color.Transparent, Color(0xFF00FF87))
-            } else {
-                Pair(Color.Transparent, Color(0xFFFF5252))
-            }
-        }
-        else -> Pair(Color.Transparent, Color(0xFF9CA3AF))
-    }
-
-    Surface(
-        modifier = modifier,
-        color = bgColor
+private fun GridCellBox(cell: CellUiModel) {
+    Box(
+        modifier = Modifier
+            .width(cell.width)
+            .fillMaxHeight()
+            .background(cell.bgColor)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            contentAlignment = if (alignStart) Alignment.CenterStart else Alignment.Center
-        ) {
-            Text(
-                text = trimmed,
-                fontWeight = if (isHeader || trimmed.toDoubleOrNull() != null || trimmed.startsWith("P") || trimmed.startsWith("A")) FontWeight.Bold else FontWeight.Normal,
-                fontSize = if (isSubjectName) 11.sp else 12.sp,
-                color = textColor,
-                textAlign = if (alignStart) TextAlign.Start else TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Text(
+            text = cell.text,
+            fontWeight = if (cell.isBold) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 12.sp,
+            color = cell.textColor,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
+private fun buildTableUiModel(cleanTable: CleanTable): TableUiModel {
+    val headers = cleanTable.headers
+    val rows = cleanTable.rows
+
+    val subjectHeader = headers.getOrNull(1) ?: "Subject"
+    val allDataHeaders = if (headers.size > 2) headers.subList(2, headers.size) else emptyList()
+
+    // Separate Date columns from Summary columns (Atted/Held and %)
+    val summaryHeaderIndices = allDataHeaders.mapIndexedNotNull { idx, h ->
+        val clean = h.trim().lowercase()
+        if (clean.contains("%") || clean.contains("atted") || clean.contains("held")) idx else null
+    }
+
+    val dateHeaders = if (summaryHeaderIndices.isNotEmpty()) {
+        allDataHeaders.filterIndexed { idx, _ -> idx !in summaryHeaderIndices }
+    } else {
+        allDataHeaders
+    }
+
+    val summaryHeaders = summaryHeaderIndices.map { sumColIdx ->
+        val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
+        val width = if (hText.contains("%")) 65.dp else 85.dp
+        SummaryHeaderUiModel(title = hText, width = width)
+    }
+
+    val rowUiModels = rows.map { row ->
+        val subjectName = row.getOrNull(1) ?: ""
+        val dataCells = if (row.size > 2) row.subList(2, row.size) else emptyList()
+
+        val dateCellModels = dateHeaders.mapIndexed { dateIdx, _ ->
+            val cellText = dataCells.getOrNull(dateIdx) ?: ""
+            createCellUiModel(cellText, DateColumnWidth)
+        }
+
+        val summaryCellModels = summaryHeaderIndices.map { sumColIdx ->
+            val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
+            val cellText = dataCells.getOrNull(sumColIdx) ?: ""
+            val width = if (hText.contains("%")) 65.dp else 85.dp
+            createCellUiModel(cellText, width)
+        }
+
+        TableRowUiModel(
+            subjectName = subjectName,
+            dateCells = dateCellModels,
+            summaryCells = summaryCellModels
+        )
+    }
+
+    return TableUiModel(
+        subjectHeader = subjectHeader,
+        dateHeaders = dateHeaders,
+        summaryHeaders = summaryHeaders,
+        rows = rowUiModels
+    )
+}
+
+private fun createCellUiModel(rawText: String, width: Dp): CellUiModel {
+    val trimmed = rawText.trim()
+    val cleanNum = trimmed.replace("%", "").trim().toDoubleOrNull()
+
+    val (bgColor, textColor, isBold) = when {
+        trimmed.startsWith("P") -> Triple(Color(0xFF143823), Color(0xFF00FF87), true)
+        trimmed.startsWith("A") -> Triple(Color(0xFF3F1717), Color(0xFFFF5252), true)
+        trimmed.startsWith("H") -> Triple(Color(0xFF17253F), Color(0xFF40C4FF), false)
+        trimmed.startsWith("L") -> Triple(Color(0xFF2E173F), Color(0xFFE040FB), false)
+        cleanNum != null -> {
+            val color = if (cleanNum >= 75.0) Color(0xFF00FF87) else Color(0xFFFF5252)
+            Triple(Color.Transparent, color, true)
+        }
+        else -> Triple(Color.Transparent, Color(0xFF9CA3AF), false)
+    }
+
+    return CellUiModel(
+        text = trimmed,
+        bgColor = bgColor,
+        textColor = textColor,
+        isBold = isBold,
+        width = width
+    )
+}
