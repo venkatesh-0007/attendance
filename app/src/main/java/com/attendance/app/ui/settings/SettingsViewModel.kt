@@ -53,9 +53,7 @@ class SettingsViewModel @Inject constructor(
         private set
 
     val attendanceStateFlow = repository.attendance
-
-    var isRefreshing by mutableStateOf(false)
-        private set
+    val isRefreshing: StateFlow<Boolean> = repository.isRefreshing
 
     val lastUpdated: StateFlow<Long> = repository.lastUpdated
 
@@ -110,6 +108,12 @@ class SettingsViewModel @Inject constructor(
         currentStudentId = prefs.studentId
         savedAccounts = repository.getSavedAccounts()
         refreshWidgets(context)
+        val pass = prefs.password
+        if (!studentId.isNullOrBlank() && !pass.isNullOrBlank()) {
+            viewModelScope.launch {
+                repository.fetchAttendance(studentId, pass)
+            }
+        }
     }
 
     fun removeAccount(studentId: String, context: Context) {
@@ -138,9 +142,7 @@ class SettingsViewModel @Inject constructor(
         val password = prefs.password ?: return
 
         viewModelScope.launch {
-            isRefreshing = true
             repository.fetchAttendance(studentId, password)
-            isRefreshing = false
         }
     }
 

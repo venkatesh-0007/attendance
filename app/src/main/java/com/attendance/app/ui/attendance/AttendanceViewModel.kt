@@ -3,9 +3,12 @@ package com.attendance.app.ui.attendance
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.attendance.app.data.local.SecurePreferences
 import com.attendance.app.data.repository.AttendanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -14,8 +17,18 @@ class AttendanceViewModel @Inject constructor(
     private val prefs: SecurePreferences
 ) : ViewModel() {
     val attendance = repository.attendance
+    val isRefreshing: StateFlow<Boolean> = repository.isRefreshing
+
     val notificationThreshold: Int
         get() = prefs.notificationThreshold
+
+    fun refresh() {
+        val studentId = prefs.studentId ?: return
+        val password = prefs.password ?: return
+        viewModelScope.launch {
+            repository.fetchAttendance(studentId, password)
+        }
+    }
 
     var searchQuery = mutableStateOf("")
         private set

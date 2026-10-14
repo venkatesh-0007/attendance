@@ -26,6 +26,12 @@ class AttendanceRepository(
     private val _lastUpdated = MutableStateFlow<Long>(0L)
     val lastUpdated: StateFlow<Long> = _lastUpdated.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow<Boolean>(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    private val _refreshError = MutableStateFlow<String?>(null)
+    val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
+
     private val _currentAccount = MutableStateFlow<UserAccount?>(null)
     val currentAccount: StateFlow<UserAccount?> = _currentAccount.asStateFlow()
 
@@ -119,6 +125,12 @@ class AttendanceRepository(
         makeActive: Boolean = (prefs.studentId == studentId || prefs.studentId.isNullOrBlank())
     ): Result<AttendanceResponse> =
         withContext(Dispatchers.IO) {
+            val shouldMakeActive = makeActive || (prefs.studentId == studentId)
+            if (shouldMakeActive) {
+                _isRefreshing.value = true
+                _refreshError.value = null
+            }
+
             try {
                 val rawResponse = api.getAttendance(studentId, password)
                 
@@ -131,9 +143,13 @@ class AttendanceRepository(
                 val response = json.decodeFromString<AttendanceResponse>(actualJson)
 
                 if (response.error != null) {
-                    Result.failure(Exception(response.error))
+                    val err = Exception(response.error)
+                    if (shouldMakeActive) _refreshError.value = response.error
+                    Result.failure(err)
                 } else if (response.totalInfo == null && response.subjectwiseSummary == null) {
-                    Result.failure(Exception("Invalid API response format"))
+                    val err = Exception("Invalid API response format")
+                    if (shouldMakeActive) _refreshError.value = "Invalid API response format"
+                    Result.failure(err)
                 } else {
                     // Update saved accounts list
                     val accounts = getSavedAccounts().toMutableList()
@@ -159,11 +175,12 @@ class AttendanceRepository(
                     prefs.setAttendanceCache(studentId, jsonStr)
                     prefs.setLastUpdated(studentId, now)
 
-                    val shouldMakeActive = makeActive || (prefs.studentId == studentId)
-                    if (shouldMakeActive) {
+                    if (shouldMakeActive && prefs.studentId == studentId) {
                         prefs.studentId = studentId
                         prefs.password = password
                         _attendance.value = response
+                        _lastUpdated.value = now
+                        _refreshError.value = null
                         updateStateFlows(studentId)
                     }
 
@@ -174,7 +191,14 @@ class AttendanceRepository(
                     Result.success(response)
                 }
             } catch (e: Exception) {
+                if (shouldMakeActive) {
+                    _refreshError.value = e.localizedMessage ?: "Failed to refresh attendance"
+                }
                 Result.failure(e)
+            } finally {
+                if (shouldMakeActive) {
+                    _isRefreshing.value = false
+                }
             }
         }
 

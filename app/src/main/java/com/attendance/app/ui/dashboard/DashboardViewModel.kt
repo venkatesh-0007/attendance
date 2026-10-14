@@ -21,10 +21,8 @@ class DashboardViewModel @Inject constructor(
 ) : ViewModel() {
 
     val attendance = repository.attendance
-
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
-
+    val isRefreshing: StateFlow<Boolean> = repository.isRefreshing
+    val refreshError: StateFlow<String?> = repository.refreshError
     val lastUpdated: StateFlow<Long> = repository.lastUpdated
 
     val notificationThreshold: Int
@@ -42,9 +40,7 @@ class DashboardViewModel @Inject constructor(
         val password = prefs.password ?: return
 
         viewModelScope.launch {
-            _isRefreshing.value = true
             repository.fetchAttendance(studentId, password)
-            _isRefreshing.value = false
         }
     }
 }
