@@ -1,29 +1,44 @@
 package com.attendance.app.ui.attendance
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.attendance.app.data.model.CleanTable
+import com.attendance.app.theme.*
 
 // --- Pre-computed, Immutable UI Models for Zero-Jank Rendering ---
 
@@ -57,17 +72,15 @@ private data class TableUiModel(
     val rows: List<TableRowUiModel>
 )
 
-private val SubjectColumnWidth = 104.dp
+private val SubjectColumnWidth = 140.dp
 private val DateColumnWidth = 62.dp
-private val RowHeight = 48.dp
+private val RowHeight = 44.dp
+private val HeaderHeight = 40.dp
 
-private val TableBgColor = Color(0xFF0B0F19)
-private val HeaderBgColor = Color(0xFF1F2937)
-private val SubjectColBgColor = Color(0xFF111827)
-private val HeaderDividerColor = Color(0xFF374151)
-private val RowDividerColor = Color(0xFF1F2937)
-private val HeaderTextColor = Color(0xFFF3F4F6)
-private val SubjectTextColor = Color(0xFFE5E7EB)
+private val TableBgColor = SpaceNavyDeep
+private val HeaderBgColor = SpaceNavyDark
+private val SubjectColBgColor = SpaceNavyDark
+private val BorderColor = Color.White.copy(alpha = 0.08f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,196 +90,359 @@ fun AttendanceTableScreen(
     viewModel: AttendanceViewModel = hiltViewModel()
 ) {
     val attendanceState by viewModel.attendance.collectAsState()
+    val threshold = viewModel.notificationThreshold
+    var gridSearchText by remember { mutableStateOf("") }
+    val accent = LocalAccentColor.current
 
-    // Memoize the table cleaning step so regex/filters run only when data changes
-    val cleanTable = remember(attendanceState) {
-        attendanceState?.getCleanTable()
-    }
-
-    // Pre-calculate all cell styles, colors, and layout metrics into an immutable model
-    val tableModel = remember(cleanTable) {
-        cleanTable?.let { buildTableUiModel(it) }
+    val tableModel by produceState<TableUiModel?>(initialValue = null, attendanceState, threshold) {
+        value = withContext(Dispatchers.Default) {
+            val clean = attendanceState?.getCleanTable() ?: return@withContext null
+            buildTableUiModel(clean, threshold.toDouble())
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Attendance Grid", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Attendance Grid",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = SpaceNavyDeep.copy(alpha = 0.85f)
                 )
             )
         },
         modifier = modifier
     ) { paddingValues ->
-        if (tableModel == null || tableModel.rows.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No attendance table data available.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            val verticalScrollState = rememberScrollState()
-            val horizontalScrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(TableBgColor)
+        ) {
+            if (tableModel == null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = accent,
+                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text(
+                            text = "Loading attendance matrix...",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            } else if (tableModel!!.rows.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.TableChart,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier.size(44.dp)
+                        )
+                        Text(
+                            text = "No attendance table records available",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            } else {
+                val currentModel = tableModel!!
+                val filteredRows = remember(currentModel.rows, gridSearchText) {
+                    if (gridSearchText.trim().isEmpty()) {
+                        currentModel.rows
+                    } else {
+                        currentModel.rows.filter {
+                            it.subjectName.contains(gridSearchText.trim(), ignoreCase = true)
+                        }
+                    }
+                }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(TableBgColor)
-            ) {
                 // -------------------------------------------------------------
-                // 1. TOP STICKY HEADER ROW (Subject Header + Date/Summary Headers)
+                // 1. MAC-STYLE CONTROL BAR (Search + Status Legend + Counter)
                 // -------------------------------------------------------------
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SpaceNavyDark)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Compact Search Box
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.06f))
+                                .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                BasicTextField(
+                                    value = gridSearchText,
+                                    onValueChange = { gridSearchText = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Normal
+                                    ),
+                                    cursorBrush = SolidColor(Color.White),
+                                    decorationBox = { innerTextField ->
+                                        if (gridSearchText.isEmpty()) {
+                                            Text(
+                                                "Find subject...",
+                                                fontSize = 12.sp,
+                                                color = Color.White.copy(alpha = 0.4f)
+                                            )
+                                        }
+                                        innerTextField()
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (gridSearchText.isNotEmpty()) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = Color.White.copy(alpha = 0.6f),
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable { gridSearchText = "" }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        // Filtered Subjects Count
+                        Text(
+                            text = "${filteredRows.size} of ${currentModel.rows.size} Subjects",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.55f)
+                        )
+                    }
+
+                    // Status Legend Row (Matching Mac GridTab)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        GridLegendItem(code = "P", title = "Present", color = MacSafe)
+                        GridLegendItem(code = "A", title = "Absent", color = MacCritical)
+                        GridLegendItem(code = "H", title = "Holiday", color = MacCyan)
+                        GridLegendItem(code = "L", title = "Leave", color = MacPurple)
+                    }
+                }
+
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+
+                // -------------------------------------------------------------
+                // 2. FROZEN COLUMN REGISTER TABLE (Mac Styled)
+                // -------------------------------------------------------------
+                val verticalScrollState = rememberScrollState()
+                val horizontalScrollState = rememberScrollState()
+
+                // Top Sticky Header Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(RowHeight)
+                        .height(HeaderHeight)
                         .background(HeaderBgColor)
                 ) {
-                    // Pinned top-left corner (Subject header)
+                    // Frozen Top-Left Subject Header
                     Box(
                         modifier = Modifier
                             .width(SubjectColumnWidth)
                             .fillMaxHeight()
                             .background(HeaderBgColor)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                            .border(0.5.dp, BorderColor)
+                            .padding(horizontal = 10.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        Text(
-                            text = tableModel.subjectHeader,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = HeaderTextColor,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = currentModel.subjectHeader,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Icon(
+                                Icons.Default.PushPin,
+                                contentDescription = "Pinned",
+                                tint = Color.White.copy(alpha = 0.45f),
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
 
-                    VerticalDivider(color = HeaderDividerColor)
-
-                    // Horizontally scrollable header data
+                    // Scrollable Date & Summary Headers
                     Row(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .horizontalScroll(horizontalScrollState)
                     ) {
-                        tableModel.dateHeaders.forEach { headerText ->
+                        currentModel.dateHeaders.forEach { headerText ->
                             Box(
                                 modifier = Modifier
                                     .width(DateColumnWidth)
                                     .fillMaxHeight()
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    .background(HeaderBgColor)
+                                    .border(0.5.dp, BorderColor)
+                                    .padding(horizontal = 4.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = headerText,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = HeaderTextColor,
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
 
-                        tableModel.summaryHeaders.forEach { summaryHeader ->
+                        currentModel.summaryHeaders.forEach { summaryHeader ->
                             Box(
                                 modifier = Modifier
                                     .width(summaryHeader.width)
                                     .fillMaxHeight()
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    .background(HeaderBgColor)
+                                    .border(0.5.dp, BorderColor)
+                                    .padding(horizontal = 4.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = summaryHeader.title,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = HeaderTextColor,
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color.White,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                     }
                 }
 
-                HorizontalDivider(color = HeaderDividerColor)
-
-                // -------------------------------------------------------------
-                // 2. SCROLLABLE BODY (Unified vertical scroll container)
-                // -------------------------------------------------------------
+                // Scrollable Table Body
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                         .verticalScroll(verticalScrollState)
                 ) {
-                    // Pinned Left Column: Subject Names
+                    // Pinned Left Subject Column (Elevated over scrollable data)
                     Column(
                         modifier = Modifier
                             .width(SubjectColumnWidth)
+                            .shadow(elevation = 4.dp, spotColor = Color.Black.copy(alpha = 0.5f))
                             .background(SubjectColBgColor)
+                            .zIndex(2f)
                     ) {
-                        tableModel.rows.forEach { row ->
+                        filteredRows.forEachIndexed { index, row ->
+                            val isEven = index % 2 == 0
                             Box(
                                 modifier = Modifier
                                     .width(SubjectColumnWidth)
                                     .height(RowHeight)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    .background(if (isEven) SpaceNavyDark else SpaceNavyMid.copy(alpha = 0.4f))
+                                    .border(0.5.dp, BorderColor)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 Text(
                                     text = row.subjectName,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 11.sp,
-                                    color = SubjectTextColor,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White.copy(alpha = 0.95f),
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                     lineHeight = 14.sp
                                 )
                             }
-                            HorizontalDivider(color = RowDividerColor)
                         }
                     }
 
-                    VerticalDivider(color = HeaderDividerColor)
-
-                    // Right Data Grid: Attendance Data
-                    // Exactly ONE horizontalScroll modifier for all data rows
+                    // Horizontally Scrollable Data Cells
                     Row(
                         modifier = Modifier
                             .weight(1f)
                             .horizontalScroll(horizontalScrollState)
+                            .zIndex(1f)
                     ) {
                         Column {
-                            tableModel.rows.forEach { row ->
+                            filteredRows.forEachIndexed { index, row ->
+                                val isEven = index % 2 == 0
                                 Row(
-                                    modifier = Modifier.height(RowHeight)
+                                    modifier = Modifier
+                                        .height(RowHeight)
+                                        .background(if (isEven) SpaceNavyDeep else SpaceNavyDark.copy(alpha = 0.4f))
                                 ) {
                                     row.dateCells.forEach { cell ->
-                                        GridCellBox(cell)
+                                        MacGridCellBox(cell)
                                     }
                                     row.summaryCells.forEach { cell ->
-                                        GridCellBox(cell)
+                                        MacGridCellBox(cell)
                                     }
                                 }
-                                HorizontalDivider(color = RowDividerColor)
                             }
                         }
                     }
@@ -276,29 +452,72 @@ fun AttendanceTableScreen(
     }
 }
 
+// MARK: - Mac Grid Cell View (Flattened single layout node)
+private val CellCapsuleShape = RoundedCornerShape(6.dp)
+
 @Composable
-private fun GridCellBox(cell: CellUiModel) {
+private fun MacGridCellBox(cell: CellUiModel) {
+    val hasBackground = cell.bgColor != Color.Transparent
     Box(
         modifier = Modifier
             .width(cell.width)
             .fillMaxHeight()
-            .background(cell.bgColor)
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+            .border(0.5.dp, BorderColor)
+            .padding(2.5.dp)
+            .then(
+                if (hasBackground) {
+                    Modifier
+                        .clip(CellCapsuleShape)
+                        .background(cell.bgColor)
+                        .border(0.5.dp, cell.textColor.copy(alpha = 0.25f), CellCapsuleShape)
+                } else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = cell.text,
+            fontSize = 11.sp,
             fontWeight = if (cell.isBold) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
             color = cell.textColor,
             textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 1
         )
     }
 }
 
-private fun buildTableUiModel(cleanTable: CleanTable): TableUiModel {
+// MARK: - Mac Status Legend Item
+@Composable
+private fun GridLegendItem(code: String, title: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.18f))
+                .border(0.5.dp, color.copy(alpha = 0.4f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = code,
+                fontSize = 8.5.sp,
+                fontWeight = FontWeight.Black,
+                color = color
+            )
+        }
+        Text(
+            text = title,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.White.copy(alpha = 0.65f)
+        )
+    }
+}
+
+private fun buildTableUiModel(cleanTable: CleanTable, targetThreshold: Double): TableUiModel {
     val headers = cleanTable.headers
     val rows = cleanTable.rows
 
@@ -319,7 +538,7 @@ private fun buildTableUiModel(cleanTable: CleanTable): TableUiModel {
 
     val summaryHeaders = summaryHeaderIndices.map { sumColIdx ->
         val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
-        val width = if (hText.contains("%")) 65.dp else 85.dp
+        val width = if (hText.contains("%")) 64.dp else 74.dp
         SummaryHeaderUiModel(title = hText, width = width)
     }
 
@@ -329,14 +548,14 @@ private fun buildTableUiModel(cleanTable: CleanTable): TableUiModel {
 
         val dateCellModels = dateHeaders.mapIndexed { dateIdx, _ ->
             val cellText = dataCells.getOrNull(dateIdx) ?: ""
-            createCellUiModel(cellText, DateColumnWidth)
+            createMacCellUiModel(cellText, DateColumnWidth, targetThreshold)
         }
 
         val summaryCellModels = summaryHeaderIndices.map { sumColIdx ->
             val hText = allDataHeaders.getOrNull(sumColIdx) ?: ""
             val cellText = dataCells.getOrNull(sumColIdx) ?: ""
-            val width = if (hText.contains("%")) 65.dp else 85.dp
-            createCellUiModel(cellText, width)
+            val width = if (hText.contains("%")) 64.dp else 74.dp
+            createMacCellUiModel(cellText, width, targetThreshold)
         }
 
         TableRowUiModel(
@@ -354,20 +573,20 @@ private fun buildTableUiModel(cleanTable: CleanTable): TableUiModel {
     )
 }
 
-private fun createCellUiModel(rawText: String, width: Dp): CellUiModel {
+private fun createMacCellUiModel(rawText: String, width: Dp, targetThreshold: Double): CellUiModel {
     val trimmed = rawText.trim()
     val cleanNum = trimmed.replace("%", "").trim().toDoubleOrNull()
 
     val (bgColor, textColor, isBold) = when {
-        trimmed.startsWith("P") -> Triple(Color(0xFF143823), Color(0xFF00FF87), true)
-        trimmed.startsWith("A") -> Triple(Color(0xFF3F1717), Color(0xFFFF5252), true)
-        trimmed.startsWith("H") -> Triple(Color(0xFF17253F), Color(0xFF40C4FF), false)
-        trimmed.startsWith("L") -> Triple(Color(0xFF2E173F), Color(0xFFE040FB), false)
+        trimmed.startsWith("P", ignoreCase = true) -> Triple(MacSafe.copy(alpha = 0.16f), MacSafe, true)
+        trimmed.startsWith("A", ignoreCase = true) -> Triple(MacCritical.copy(alpha = 0.16f), MacCritical, true)
+        trimmed.startsWith("H", ignoreCase = true) -> Triple(MacCyan.copy(alpha = 0.14f), MacCyan, false)
+        trimmed.startsWith("L", ignoreCase = true) -> Triple(MacPurple.copy(alpha = 0.14f), MacPurple, false)
         cleanNum != null -> {
-            val color = if (cleanNum >= 75.0) Color(0xFF00FF87) else Color(0xFFFF5252)
-            Triple(Color.Transparent, color, true)
+            val color = if (cleanNum >= targetThreshold) MacSafe else MacCritical
+            Triple(color.copy(alpha = 0.12f), color, true)
         }
-        else -> Triple(Color.Transparent, Color(0xFF9CA3AF), false)
+        else -> Triple(Color.Transparent, Color.White.copy(alpha = 0.45f), false)
     }
 
     return CellUiModel(

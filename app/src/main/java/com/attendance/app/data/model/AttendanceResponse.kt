@@ -21,7 +21,17 @@ data class AttendanceResponse(
     val overallPercentage: Double
         get() = totalInfo?.totalPercentage?.replace("%", "")?.toDoubleOrNull() ?: 0.0
 
+    val attendedCount: Int
+        get() = totalInfo?.totalAttended ?: 0
+
+    val heldCount: Int
+        get() = totalInfo?.totalHeld ?: 0
+
+    @kotlinx.serialization.Transient
+    private var _cachedCleanTable: CleanTable? = null
+
     fun getCleanTable(): CleanTable? {
+        _cachedCleanTable?.let { return it }
         val table = attendanceTable ?: return null
         val rawHeaders = table.headers ?: return null
         val rawRows = table.rows ?: return null
@@ -50,7 +60,9 @@ data class AttendanceResponse(
             }
         }
 
-        return CleanTable(finalHeaders, finalRows)
+        val result = CleanTable(finalHeaders, finalRows)
+        _cachedCleanTable = result
+        return result
     }
 
     private fun isDateHeader(header: String): Boolean {
@@ -322,4 +334,66 @@ data class AttendanceResponse(
             addedHolidaysCount = holidayDates.size
         )
     }
+
+    fun getTodayGridAttendance(todayDateStr: String = ""): GridDayAttendance? {
+        val cleanTable = getCleanTable() ?: return null
+        val columnIndex = getTodayColumnIndex(todayDateStr)
+        if (columnIndex == -1 || columnIndex >= cleanTable.headers.size) return null
+
+        val dateHeader = cleanTable.headers[columnIndex]
+        val records = mutableListOf<TodayGridSubjectRecord>()
+        val timeline = mutableListOf<AttendanceStatus>()
+
+        for (row in cleanTable.rows) {
+            if (columnIndex < row.size) {
+                val cell = row[columnIndex].trim()
+                val subject = if (row.size > 1) row[1].trim() else "Subject"
+
+                if (cell.isNotEmpty() && cell != "-" && cell != "0") {
+                    val status = when {
+                        cell.contains("P", ignoreCase = true) -> AttendanceStatus.PRESENT
+                        cell.contains("A", ignoreCase = true) -> AttendanceStatus.ABSENT
+                        cell.contains("H", ignoreCase = true) -> AttendanceStatus.HOLIDAY
+                        cell.contains("L", ignoreCase = true) -> AttendanceStatus.LEAVE
+                        else -> AttendanceStatus.UPCOMING
+                    }
+                    records.add(TodayGridSubjectRecord(subject, cell, status))
+
+                    cell.uppercase().forEach { char ->
+                        if (char in listOf('P', 'A', 'H', 'L')) {
+                            timeline.add(mapCharToStatus(char))
+                        }
+                    }
+                }
+            }
+        }
+
+        val present = timeline.count { it == AttendanceStatus.PRESENT }
+        val absent = timeline.count { it == AttendanceStatus.ABSENT }
+
+        return GridDayAttendance(
+            dateHeader = dateHeader,
+            records = records,
+            timeline = timeline,
+            presentCount = present,
+            absentCount = absent
+        )
+    }
 }
+
+@Serializable
+data class TodayGridSubjectRecord(
+    val subjectName: String,
+    val statusString: String,
+    val status: AttendanceStatus
+)
+
+@Serializable
+data class GridDayAttendance(
+    val dateHeader: String,
+    val records: List<TodayGridSubjectRecord>,
+    val timeline: List<AttendanceStatus>,
+    val presentCount: Int,
+    val absentCount: Int
+)
+
