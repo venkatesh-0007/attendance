@@ -1,11 +1,16 @@
 package com.attendance.app.ui.timetable
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,11 +20,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.attendance.app.data.model.FacultyInfo
 import com.attendance.app.data.model.TimetableClass
+import com.attendance.app.theme.*
 import com.attendance.app.ui.attendance.AttendanceViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -33,6 +46,7 @@ fun TimetableScreen(
     viewModel: AttendanceViewModel = hiltViewModel()
 ) {
     val attendanceState by viewModel.attendance.collectAsState()
+    val accent = LocalAccentColor.current
 
     val days = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
     val todayName = remember { SimpleDateFormat("EEEE", Locale.getDefault()).format(Date()) }
@@ -51,115 +65,168 @@ fun TimetableScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Weekly Schedule", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Class Schedule",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = SpaceNavyDeep.copy(alpha = 0.85f)
                 )
             )
         },
         modifier = modifier
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(days) { day ->
-                        val isSelected = day == selectedDay
-                        val isToday = day == todayName
-
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedDay = day },
-                            label = {
-                                Text(
-                                    text = day.take(3),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                            )
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            SpaceNavyDeep,
+                            SpaceNavyDark,
+                            SpaceNavyMid
                         )
-                    }
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "$selectedDay's Classes",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
                     )
-                    if (selectedDay == todayName) {
-                        SuggestionChip(
-                            onClick = {},
-                            label = { Text("Today", style = MaterialTheme.typography.labelMedium) },
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                labelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            border = null
-                        )
+                )
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Day selector pills
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(days) { day ->
+                            val isSelected = day == selectedDay
+                            val isToday = day == todayName
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) accent else Color.White.copy(alpha = 0.06f))
+                                    .border(
+                                        if (isSelected) 1.dp else 0.5.dp,
+                                        if (isSelected) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { selectedDay = day }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = day.take(3),
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f)
+                                    )
+                                    if (isToday) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(5.dp)
+                                                .clip(CircleShape)
+                                                .background(if (isSelected) Color.White else accent)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
-            if (selectedDayClasses.isEmpty()) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(150.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "No classes scheduled for $selectedDay.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "$selectedDay's Classes",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
+                        if (selectedDay == todayName) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(accent.copy(alpha = 0.16f))
+                                    .border(0.75.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "TODAY",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accent
+                                )
+                            }
+                        }
                     }
                 }
-            } else {
-                items(selectedDayClasses) { scheduleClass ->
-                    ClassScheduleCard(scheduleClass = scheduleClass, isToday = selectedDay == todayName)
-                }
-            }
 
-            if (facultyData.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Faculty Directory",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                if (selectedDayClasses.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(GlassCardBg)
+                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(18.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No classes scheduled for $selectedDay.",
+                                fontSize = 13.5.sp,
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                } else {
+                    items(selectedDayClasses) { scheduleClass ->
+                        ClassScheduleCard(scheduleClass = scheduleClass, isToday = selectedDay == todayName)
+                    }
                 }
 
-                items(facultyData) { faculty ->
-                    FacultyCard(faculty = faculty)
+                if (facultyData.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "FACULTY DIRECTORY",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White.copy(alpha = 0.5f),
+                            letterSpacing = 0.8.sp,
+                            modifier = Modifier.padding(start = 2.dp)
+                        )
+                    }
+
+                    items(facultyData) { faculty ->
+                        FacultyCard(faculty = faculty)
+                    }
                 }
             }
         }
@@ -169,23 +236,28 @@ fun TimetableScreen(
 @Composable
 fun ClassScheduleCard(scheduleClass: TimetableClass, isToday: Boolean) {
     val isOngoing = isToday && isClassOngoing(scheduleClass.time)
+    val accent = LocalAccentColor.current
 
-    val cardBg = when {
-        isOngoing -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-        isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-        else -> MaterialTheme.colorScheme.surface
-    }
-
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = cardBg),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (isOngoing) 4.dp else 2.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = Color.Black.copy(alpha = 0.35f),
+                spotColor = Color.Black.copy(alpha = 0.45f)
+            )
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (isOngoing) accent.copy(alpha = 0.12f) else GlassCardBg)
+            .border(
+                1.dp,
+                if (isOngoing) Brush.linearGradient(listOf(accent.copy(alpha = 0.5f), accent.copy(alpha = 0.2f)))
+                else Brush.linearGradient(listOf(GlassCardBorderTop, GlassCardBorderMid, GlassCardBorderBottom)),
+                RoundedCornerShape(18.dp)
+            )
+            .padding(14.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -193,33 +265,47 @@ fun ClassScheduleCard(scheduleClass: TimetableClass, isToday: Boolean) {
             ) {
                 Text(
                     text = scheduleClass.subject,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
                 )
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (isOngoing) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.error,
-                            shape = RoundedCornerShape(6.dp)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MacCritical)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "ONGOING",
-                                color = MaterialTheme.colorScheme.onError,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                text = "LIVE",
+                                color = Color.White,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Black
                             )
                         }
                     }
-                    Text(
-                        text = scheduleClass.time,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(accent.copy(alpha = 0.15f))
+                            .border(0.5.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = scheduleClass.time,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = accent
+                        )
+                    }
                 }
             }
 
@@ -230,18 +316,26 @@ fun ClassScheduleCard(scheduleClass: TimetableClass, isToday: Boolean) {
             ) {
                 scheduleClass.faculty?.let { faculty ->
                     Text(
-                        text = "Faculty: $faculty",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Prof: $faculty",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.65f)
                     )
                 }
                 scheduleClass.room?.let { room ->
-                    Text(
-                        text = "Room: $room",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Room $room",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
         }
@@ -251,58 +345,90 @@ fun ClassScheduleCard(scheduleClass: TimetableClass, isToday: Boolean) {
 @Composable
 fun FacultyCard(faculty: FacultyInfo) {
     var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val accent = LocalAccentColor.current
 
-    ElevatedCard(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(GlassCardBg)
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(GlassCardBorderTop, GlassCardBorderMid, GlassCardBorderBottom)),
+                RoundedCornerShape(16.dp)
+            )
+            .clickable { expanded = !expanded }
+            .padding(14.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = faculty.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
-                    faculty.subject?.let { sub ->
-                        Text(
-                            text = sub,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Text(
+                        text = faculty.subject ?: "Faculty Member",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (!faculty.phone.isNullOrBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(accent.copy(alpha = 0.16f))
+                                .border(0.5.dp, accent.copy(alpha = 0.35f), CircleShape)
+                                .clickable {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${faculty.phone}"))
+                                    context.startActivity(intent)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Phone, contentDescription = "Call", tint = accent, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    if (!faculty.email.isNullOrBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(MacPurple.copy(alpha = 0.16f))
+                                .border(0.5.dp, MacPurple.copy(alpha = 0.35f), CircleShape)
+                                .clickable {
+                                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${faculty.email}"))
+                                    context.startActivity(intent)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Email, contentDescription = "Email", tint = MacPurple, modifier = Modifier.size(16.dp))
+                        }
                     }
                 }
             }
 
             AnimatedVisibility(visible = expanded) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    faculty.email?.takeIf { it.isNotBlank() }?.let { email ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        }
+                    if (!faculty.phone.isNullOrBlank()) {
+                        Text("Phone: ${faculty.phone}", fontSize = 11.5.sp, color = Color.White.copy(alpha = 0.7f))
                     }
-                    faculty.phone?.takeIf { it.isNotBlank() }?.let { phone ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = phone, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        }
+                    if (!faculty.email.isNullOrBlank()) {
+                        Text("Email: ${faculty.email}", fontSize = 11.5.sp, color = Color.White.copy(alpha = 0.7f))
                     }
                 }
             }
@@ -310,49 +436,29 @@ fun FacultyCard(faculty: FacultyInfo) {
     }
 }
 
-private fun getStartMinutes(timeString: String): Int {
-    try {
-        val parts = timeString.split("-")
-        if (parts.isEmpty()) return 0
-        val startStr = parts[0].trim()
-        val sdf = SimpleDateFormat("hh:mm a", Locale.US)
-        val date = sdf.parse(startStr) ?: return 0
-        val cal = java.util.Calendar.getInstance().apply { time = date }
-        return cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+private fun getStartMinutes(timeRange: String): Int {
+    return try {
+        val startTime = timeRange.split("-").firstOrNull()?.trim() ?: return 0
+        val parts = startTime.split(":")
+        val hours = parts[0].toIntOrNull() ?: 0
+        val minutes = parts.getOrNull(1)?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+        val isPm = startTime.contains("PM", ignoreCase = true) && hours < 12
+        (if (isPm) hours + 12 else hours) * 60 + minutes
     } catch (e: Exception) {
-        return 0
+        0
     }
 }
 
-private fun isClassOngoing(timeString: String): Boolean {
-    try {
-        val parts = timeString.split("-")
-        if (parts.size != 2) return false
-        val startStr = parts[0].trim()
-        val endStr = parts[1].trim()
-
-        val sdf = SimpleDateFormat("hh:mm a", Locale.US)
-        val startTime = sdf.parse(startStr) ?: return false
-        val endTime = sdf.parse(endStr) ?: return false
-
-        val calendar = java.util.Calendar.getInstance()
-        val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(java.util.Calendar.MINUTE)
-
-        val currentTimeStr = String.format(Locale.US, "%02d:%02d", currentHour, currentMinute)
-        val current24Sdf = SimpleDateFormat("HH:mm", Locale.US)
-        val currentTime = current24Sdf.parse(currentTimeStr) ?: return false
-
-        val startCal = java.util.Calendar.getInstance().apply { time = startTime }
-        val endCal = java.util.Calendar.getInstance().apply { time = endTime }
-        val compCal = java.util.Calendar.getInstance().apply { time = currentTime }
-
-        val startMinutes = startCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + startCal.get(java.util.Calendar.MINUTE)
-        val endMinutes = endCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + endCal.get(java.util.Calendar.MINUTE)
-        val currentMinutes = compCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + compCal.get(java.util.Calendar.MINUTE)
-
-        return currentMinutes in startMinutes..endMinutes
+private fun isClassOngoing(timeRange: String): Boolean {
+    return try {
+        val parts = timeRange.split("-")
+        if (parts.size < 2) return false
+        val now = java.util.Calendar.getInstance()
+        val currentMinutes = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+        val startMinutes = getStartMinutes(parts[0])
+        val endMinutes = getStartMinutes(parts[1])
+        currentMinutes in startMinutes..endMinutes
     } catch (e: Exception) {
-        return false
+        false
     }
 }

@@ -28,6 +28,15 @@ enum class AttendanceStatus {
     UPCOMING
 }
 
+val AttendanceStatus.title: String
+    get() = when (this) {
+        AttendanceStatus.PRESENT -> "Present"
+        AttendanceStatus.ABSENT -> "Absent"
+        AttendanceStatus.HOLIDAY -> "Holiday"
+        AttendanceStatus.LEAVE -> "Leave"
+        AttendanceStatus.UPCOMING -> "Upcoming"
+    }
+
 @Serializable
 enum class OverallAttendanceStatus {
     SAFE,

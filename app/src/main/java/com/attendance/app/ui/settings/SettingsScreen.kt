@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,13 +20,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.attendance.app.data.model.UserAccount
+import com.attendance.app.theme.*
+import com.attendance.app.ui.dashboard.components.LiquidGlassCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -41,7 +48,9 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val attendanceState by viewModel.attendanceStateFlow.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val lastUpdated by viewModel.lastUpdated.collectAsState()
+    val accent = LocalAccentColor.current
     var editingAccountForName by remember { mutableStateOf<UserAccount?>(null) }
 
     editingAccountForName?.let { accountToEdit ->
@@ -58,385 +67,391 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Settings & Preferences",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = SpaceNavyDeep.copy(alpha = 0.85f)
                 )
             )
         },
         modifier = modifier
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 32.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            SpaceNavyDeep,
+                            SpaceNavyDark,
+                            SpaceNavyMid
+                        )
+                    )
+                )
         ) {
-            // 1. ACTIVE PROFILE HEADER
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                val activeAccount = viewModel.savedAccounts.find { it.studentId == viewModel.currentStudentId }
-                val studentName = activeAccount?.displayName ?: attendanceState?.studentName ?: "Account (${viewModel.currentStudentId ?: "N/A"})"
-                val rawRoll = attendanceState?.rollNumber ?: viewModel.currentStudentId ?: "N/A"
-                val rollNumber = rawRoll.trim().removePrefix(":").trim()
-                val firstLetter = studentName.trim().take(1).uppercase()
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp)
+            ) {
+                // 1. ACTIVE PROFILE HEADER
+                item {
+                    val activeAccount = viewModel.savedAccounts.find { it.studentId == viewModel.currentStudentId }
+                    val studentName = activeAccount?.displayName ?: attendanceState?.studentName ?: "Account (${viewModel.currentStudentId ?: "N/A"})"
+                    val rawRoll = attendanceState?.rollNumber ?: viewModel.currentStudentId ?: "N/A"
+                    val rollNumber = rawRoll.trim().removePrefix(":").trim().uppercase()
+                    val firstLetter = studentName.trim().take(1).uppercase()
 
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-                    ),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    LiquidGlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        borderBrush = Brush.linearGradient(
+                            listOf(Color.White.copy(alpha = 0.25f), accent.copy(alpha = 0.25f), Color.White.copy(alpha = 0.05f))
+                        ),
+                        contentPadding = PaddingValues(18.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = firstLetter,
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(accent.copy(alpha = 0.85f), accent)
+                                        )
+                                    )
+                                    .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                                    .shadow(elevation = 6.dp, shape = CircleShape, spotColor = accent),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = studentName,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    text = firstLetter,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
                                 )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = studentName,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "Active",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
+                                        text = rollNumber,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = Color.White.copy(alpha = 0.8f)
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Roll No: $rollNumber",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                            IconButton(
+                                onClick = { viewModel.refresh() },
+                                enabled = !isRefreshing
+                            ) {
+                                if (isRefreshing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = accent)
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = accent)
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            // 2. ACCOUNT MANAGEMENT
-            item {
-                SectionHeader("Account Management")
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        viewModel.savedAccounts.forEach { account ->
-                            val isCurrent = account.studentId == viewModel.currentStudentId
-                            AccountItem(
-                                account = account,
-                                isCurrent = isCurrent,
-                                onSwitch = { viewModel.switchAccount(account.studentId, context) },
-                                onEditName = { editingAccountForName = account },
-                                onRemove = { viewModel.removeAccount(account.studentId, context) }
-                            )
-                        }
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                // 2. ACCENT COLOR CUSTOMIZATION (Prominently featured!)
+                item {
+                    SectionHeader("App Accent Theme")
+                    LiquidGlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        Text(
+                            text = "Choose Your Accent Color",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Dynamically customizes cards, glowing indicators, buttons and highlights",
+                            fontSize = 11.5.sp,
+                            color = Color.White.copy(alpha = 0.55f),
+                            modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
                         )
 
-                        TextButton(
-                            onClick = onAddAccount,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add Another Account", style = MaterialTheme.typography.labelLarge)
+                        // Flow / Grid of Preset Color Tiles
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Row 1
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AppAccentPresets.take(4).forEach { preset ->
+                                    val isSelected = (viewModel.accentColor == preset.hex) || (viewModel.accentColor == null && preset.id == "blue")
+                                    AccentPresetChip(
+                                        preset = preset,
+                                        isSelected = isSelected,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { viewModel.updateAccentColor(preset.hex, context) }
+                                    )
+                                }
+                            }
+
+                            // Row 2
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AppAccentPresets.drop(4).forEach { preset ->
+                                    val isSelected = viewModel.accentColor == preset.hex
+                                    AccentPresetChip(
+                                        preset = preset,
+                                        isSelected = isSelected,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { viewModel.updateAccentColor(preset.hex, context) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            // 3. ATTENDANCE CUSTOMIZATION
-            item {
-                SectionHeader("Attendance Customization")
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                // 3. MULTI-ACCOUNT MANAGEMENT
+                item {
+                    SectionHeader("Linked Student Accounts")
+                    LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            viewModel.savedAccounts.forEach { account ->
+                                val isCurrent = account.studentId == viewModel.currentStudentId
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isCurrent) accent.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.04f))
+                                        .border(
+                                            0.75.dp,
+                                            if (isCurrent) accent.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { viewModel.switchAccount(account.studentId, context) }
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = account.displayName,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = account.studentId,
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = Color.White.copy(alpha = 0.6f)
+                                        )
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(onClick = { editingAccountForName = account }) {
+                                            Icon(Icons.Default.Edit, contentDescription = "Edit Name", tint = Color.White.copy(alpha = 0.65f), modifier = Modifier.size(18.dp))
+                                        }
+                                        if (isCurrent) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(accent),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(Icons.Default.Check, contentDescription = "Active", tint = Color.White, modifier = Modifier.size(14.dp))
+                                            }
+                                        } else {
+                                            IconButton(onClick = { viewModel.removeAccount(account.studentId, context) }) {
+                                                Icon(Icons.Default.DeleteOutline, contentDescription = "Remove", tint = MacCritical, modifier = Modifier.size(18.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color.White.copy(alpha = 0.06f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                                    .clickable { onAddAccount() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+                                    Text("+ Add Another Student", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. ATTENDANCE TARGET THRESHOLD
+                item {
+                    SectionHeader("Attendance Goal")
+                    LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Target Attendance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Target Threshold", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(accent.copy(alpha = 0.16f))
+                                    .border(0.75.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
-                                Text(
-                                    "${viewModel.notificationThreshold}%",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text("${viewModel.notificationThreshold}%", fontSize = 13.5.sp, fontWeight = FontWeight.Black, color = accent)
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Calculations across the app (like class skipping limits or additional classes needed) dynamically adapt to this target threshold.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+
                         Slider(
                             value = viewModel.notificationThreshold.toFloat(),
                             onValueChange = { viewModel.updateNotificationThreshold(it.toInt(), context) },
-                            valueRange = 50f..95f
+                            valueRange = 50f..95f,
+                            steps = 8,
+                            colors = SliderDefaults.colors(
+                                thumbColor = accent,
+                                activeTrackColor = accent,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.12f)
+                            ),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                        Text(
+                            text = "Used to compute Safe to Skip periods and highlight target alerts across the app.",
+                            fontSize = 11.5.sp,
+                            color = Color.White.copy(alpha = 0.5f)
                         )
                     }
                 }
-            }
 
-            // 4. DATA DIAGNOSTICS & SYNC
-            item {
-                SectionHeader("Synchronization & Diagnostics")
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        SyncIntervalSelector(
-                            currentInterval = viewModel.refreshIntervalMinutes,
-                            onIntervalSelected = { viewModel.updateRefreshInterval(it, context) }
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        ActiveHoursSelector(
-                            isEnabled = viewModel.autoSyncActiveHoursOnly,
-                            startHour = viewModel.activeStartHour,
-                            endHour = viewModel.activeEndHour,
-                            onToggle = { viewModel.updateAutoSyncActiveHoursOnly(it) },
-                            onHoursChanged = { start, end -> viewModel.updateActiveHours(start, end) }
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Last Sync Status Card
-                        val lastSyncStr = if (lastUpdated > 0) {
-                            SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(lastUpdated))
-                        } else {
-                            "Never Synced"
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (lastUpdated > 0) Icons.Default.CheckCircle else Icons.Default.Info,
-                                contentDescription = null,
-                                tint = if (lastUpdated > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Status: Up-to-date",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Last synced: $lastSyncStr",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = { viewModel.refresh() },
-                            enabled = !viewModel.isRefreshing,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            if (viewModel.isRefreshing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(Icons.Default.Sync, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sync Now", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 5. APPEARANCE Settings
-            item {
-                SectionHeader("Appearance")
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Theme Mode", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(
-                                "SYSTEM" to Icons.Default.SettingsSystemDaydream,
-                                "LIGHT" to Icons.Default.LightMode,
-                                "DARK" to Icons.Default.DarkMode
-                            ).forEach { (mode, icon) ->
-                                FilterChip(
-                                    selected = viewModel.darkMode == mode,
-                                    onClick = { viewModel.updateDarkMode(mode, context) },
-                                    leadingIcon = {
-                                        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    },
-                                    label = { Text(mode, style = MaterialTheme.typography.labelMedium) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Accent Color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val colors = listOf(
-                            null to "Default",
-                            "#2196F3" to "Blue",
-                            "#4CAF50" to "Green",
-                            "#FF9800" to "Orange",
-                            "#E91E63" to "Pink",
-                            "#9C27B0" to "Purple"
-                        )
+                // 5. AUTO-SYNC SCHEDULE
+                item {
+                    SectionHeader("Background Sync")
+                    LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            colors.forEach { (hex, _) ->
-                                val color = hex?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
-                                ColorCircle(
-                                    color = color,
-                                    isSelected = viewModel.accentColor == hex,
-                                    onClick = { viewModel.updateAccentColor(hex, context) }
-                                )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Active Hours Sync Only", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("Only fetch in background during college hours", fontSize = 11.5.sp, color = Color.White.copy(alpha = 0.5f))
+                            }
+                            Switch(
+                                checked = viewModel.autoSyncActiveHoursOnly,
+                                onCheckedChange = { viewModel.updateAutoSyncActiveHoursOnly(it) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = accent, checkedTrackColor = accent.copy(alpha = 0.35f))
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Sync Frequency", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.85f))
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val intervals = listOf(30 to "30m", 60 to "1h", 120 to "2h", 180 to "3h", 360 to "6h")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            intervals.forEach { (mins, label) ->
+                                val isSelected = viewModel.refreshIntervalMinutes == mins
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(34.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) accent else Color.White.copy(alpha = 0.06f))
+                                        .border(0.75.dp, if (isSelected) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                        .clickable { viewModel.updateRefreshInterval(mins, context) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // 6. SYSTEM MAINTENANCE
-            item {
-                SectionHeader("Maintenance")
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        onClick = { viewModel.clearCache() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text("Clear Cache", style = MaterialTheme.typography.labelLarge)
-                    }
-                    Button(
-                        onClick = { viewModel.logout(); onLogout() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Log Out All", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
+                // 6. SYSTEM MAINTENANCE
+                item {
+                    SectionHeader("Maintenance")
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.06f))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .clickable { viewModel.clearCache() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Clear Cache", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
 
-            // 7. FOOTER
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Attendance Tracker v1.6",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Created & Developed by Venkatesh",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Designed & Structured with Antigravity",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MacCritical.copy(alpha = 0.16f))
+                                .border(1.dp, MacCritical.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .clickable { viewModel.logout(); onLogout() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Log Out All", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MacCritical)
+                        }
+                    }
                 }
             }
         }
@@ -444,67 +459,72 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SectionHeader(title: String) {
+private fun SectionHeader(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 4.dp)
+        text = title.uppercase(),
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Black,
+        color = Color.White.copy(alpha = 0.5f),
+        letterSpacing = 0.8.sp,
+        modifier = Modifier.padding(start = 2.dp, top = 4.dp, bottom = 2.dp)
     )
 }
 
 @Composable
-fun AccountItem(
-    account: UserAccount,
-    isCurrent: Boolean,
-    onSwitch: () -> Unit,
-    onEditName: () -> Unit,
-    onRemove: () -> Unit
+private fun AccentPresetChip(
+    preset: AppAccentColor,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = !isCurrent) { onSwitch() }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        modifier = modifier
+            .height(58.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) preset.color.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.04f))
+            .border(
+                if (isSelected) 1.5.dp else 0.5.dp,
+                if (isSelected) preset.color else Color.White.copy(alpha = 0.1f),
+                RoundedCornerShape(12.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
     ) {
-        val initial = account.displayName.take(1).uppercase()
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(text = initial, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = account.displayName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Roll No: ${account.studentId}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        IconButton(onClick = onEditName) {
-            Icon(
-                Icons.Default.Edit,
-                contentDescription = "Edit Account Name",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        if (isCurrent) {
-            Icon(Icons.Default.CheckCircle, contentDescription = "Active Account", tint = MaterialTheme.colorScheme.primary)
-        } else {
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Delete, contentDescription = "Remove Account", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(preset.gradientStart, preset.gradientEnd)
+                        )
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
+                    .shadow(elevation = if (isSelected) 4.dp else 0.dp, shape = CircleShape, spotColor = preset.glowColor),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
             }
+
+            Text(
+                text = preset.name.split(" ").last(),
+                fontSize = 10.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.65f),
+                maxLines = 1
+            )
         }
     }
 }
@@ -515,217 +535,48 @@ fun EditAccountNameDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    var nameText by remember { mutableStateOf(account.customName ?: account.studentName ?: "") }
+    var customName by remember { mutableStateOf(account.customName ?: "") }
+    val accent = LocalAccentColor.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Name Account / Roll No", fontWeight = FontWeight.Bold) },
+        containerColor = SpaceNavyDark,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Text("Edit Account Name", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Set a custom name/nickname for Roll No: ${account.studentId}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "Set a custom display nickname for student ID ${account.studentId}.",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.6f)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
-                    value = nameText,
-                    onValueChange = { nameText = it },
-                    label = { Text("Account Name / Alias") },
-                    placeholder = { Text("e.g. Venkat, Primary Account") },
+                    value = customName,
+                    onValueChange = { customName = it },
+                    label = { Text("Display Name") },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accent,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    onConfirm(nameText)
-                    onDismiss()
-                }
-            ) {
-                Text("Save Name")
+            TextButton(onClick = { onConfirm(customName) }) {
+                Text("Save", color = accent, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = Color.White.copy(alpha = 0.65f))
             }
         }
     )
-}
-
-@Composable
-fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(color)
-            .clickable { onClick() }
-            .then(
-                if (isSelected) Modifier
-                    .padding(4.dp)
-                    .background(Color.White.copy(alpha = 0.5f), CircleShape)
-                else Modifier
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isSelected) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black)
-    }
-}
-
-@Composable
-fun SyncIntervalSelector(currentInterval: Int, onIntervalSelected: (Int) -> Unit) {
-    val options = listOf(
-        30 to "30 minutes",
-        60 to "1 hour",
-        120 to "2 hours",
-        180 to "3 hours",
-        360 to "6 hours"
-    )
-    var expanded by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("Auto Sync Interval", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Box {
-            TextButton(onClick = { expanded = true }) {
-                Text(
-                    text = options.find { it.first == currentInterval }?.second ?: "3 hours",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                options.forEach { (mins, label) ->
-                    DropdownMenuItem(text = { Text(label) }, onClick = { onIntervalSelected(mins); expanded = false })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ActiveHoursSelector(
-    isEnabled: Boolean,
-    startHour: Int,
-    endHour: Int,
-    onToggle: (Boolean) -> Unit,
-    onHoursChanged: (Int, Int) -> Unit
-) {
-    val hoursList = listOf(
-        7 to "07:00 AM",
-        8 to "08:00 AM",
-        9 to "09:00 AM",
-        10 to "10:00 AM",
-        11 to "11:00 AM",
-        12 to "12:00 PM",
-        13 to "01:00 PM",
-        14 to "02:00 PM",
-        15 to "03:00 PM",
-        16 to "04:00 PM",
-        17 to "05:00 PM",
-        18 to "06:00 PM"
-    )
-
-    var startExpanded by remember { mutableStateOf(false) }
-    var endExpanded by remember { mutableStateOf(false) }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Sync During College Hours Only",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Auto-updates widgets only during selected hours to save battery & data.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = onToggle
-            )
-        }
-
-        if (isEnabled) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Start Hour Picker
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedButton(
-                        onClick = { startExpanded = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "From: ${hoursList.find { it.first == startHour }?.second ?: "09:00 AM"}",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                    }
-                    DropdownMenu(
-                        expanded = startExpanded,
-                        onDismissRequest = { startExpanded = false }
-                    ) {
-                        hoursList.forEach { (h, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    onHoursChanged(h, endHour)
-                                    startExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // End Hour Picker
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedButton(
-                        onClick = { endExpanded = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "To: ${hoursList.find { it.first == endHour }?.second ?: "04:00 PM"}",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                    }
-                    DropdownMenu(
-                        expanded = endExpanded,
-                        onDismissRequest = { endExpanded = false }
-                    ) {
-                        hoursList.forEach { (h, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    onHoursChanged(startHour, h)
-                                    endExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

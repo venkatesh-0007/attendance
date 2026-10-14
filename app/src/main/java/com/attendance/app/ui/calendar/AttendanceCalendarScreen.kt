@@ -1,6 +1,7 @@
 package com.attendance.app.ui.calendar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -16,14 +17,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.attendance.app.data.model.AttendanceResponse
+import com.attendance.app.theme.*
 import com.attendance.app.ui.attendance.AttendanceViewModel
+import com.attendance.app.ui.dashboard.components.LiquidGlassCard
 import com.attendance.app.util.PdfExporter
 import java.text.SimpleDateFormat
 import java.util.*
@@ -37,6 +43,7 @@ fun AttendanceCalendarScreen(
 ) {
     val context = LocalContext.current
     val attendanceState by viewModel.attendance.collectAsState()
+    val accent = LocalAccentColor.current
 
     val calendar = remember { Calendar.getInstance() }
     val currentMonthName = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time) }
@@ -68,80 +75,119 @@ fun AttendanceCalendarScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Attendance Calendar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Attendance Calendar",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                 },
                 actions = {
                     attendanceState?.let { data ->
-                        IconButton(onClick = { PdfExporter.generateAndSharePdf(context, data) }) {
-                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = MaterialTheme.colorScheme.primary)
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(accent.copy(alpha = 0.16f))
+                                .border(0.5.dp, accent.copy(alpha = 0.35f), CircleShape)
+                                .clickable { PdfExporter.generateAndSharePdf(context, data) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.PictureAsPdf,
+                                contentDescription = "Export PDF",
+                                tint = accent,
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = SpaceNavyDeep.copy(alpha = 0.85f)
+                )
             )
         },
         modifier = modifier
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Month Header
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = currentMonthName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            SpaceNavyDeep,
+                            SpaceNavyDark,
+                            SpaceNavyMid
+                        )
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LegendBadge("Present", MaterialTheme.colorScheme.primary)
-                        LegendBadge("Absent", MaterialTheme.colorScheme.error)
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Month Header in Liquid Glass
+                LiquidGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = currentMonthName,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            LegendBadge("Present", MacSafe)
+                            LegendBadge("Absent", MacCritical)
+                        }
                     }
                 }
-            }
 
-            // Days of week header
-            val daysOfWeek = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                daysOfWeek.forEach { dayLabel ->
-                    Text(
-                        text = dayLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
+                // Days of week header
+                val daysOfWeek = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    daysOfWeek.forEach { dayLabel ->
+                        Text(
+                            text = dayLabel,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
-            }
 
-            // Calendar Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(7),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(monthCalendar, key = { it.dayNumber }) { dayInfo ->
-                    CalendarDayCell(dayInfo = dayInfo, onClick = { selectedDayInfo = dayInfo })
+                // Calendar Grid
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(7),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(monthCalendar, key = { it.dayNumber }) { dayInfo ->
+                        CalendarDayCell(dayInfo = dayInfo, onClick = { selectedDayInfo = dayInfo })
+                    }
                 }
             }
         }
@@ -151,16 +197,42 @@ fun AttendanceCalendarScreen(
     selectedDayInfo?.let { info ->
         AlertDialog(
             onDismissRequest = { selectedDayInfo = null },
+            containerColor = SpaceNavyDark,
+            shape = RoundedCornerShape(20.dp),
             confirmButton = {
                 TextButton(onClick = { selectedDayInfo = null }) {
-                    Text("Close")
+                    Text("Close", color = accent, fontWeight = FontWeight.Bold)
                 }
             },
-            title = { Text("Date: ${info.dateStr}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    text = "Date: ${info.dateStr}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Classes Attended: ${info.presents}", style = MaterialTheme.typography.bodyMedium)
-                    Text("Classes Missed: ${info.absents}", style = MaterialTheme.typography.bodyMedium, color = if (info.absents > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Classes Attended:", fontSize = 13.sp, color = Color.White.copy(alpha = 0.7f))
+                        Text("${info.presents} Periods", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MacSafe)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Classes Missed:", fontSize = 13.sp, color = Color.White.copy(alpha = 0.7f))
+                        Text(
+                            "${info.absents} Periods",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (info.absents > 0) MacCritical else Color.White.copy(alpha = 0.5f)
+                        )
+                    }
                 }
             }
         )
@@ -180,43 +252,61 @@ data class CalendarDayInfo(
 @Composable
 fun CalendarDayCell(dayInfo: CalendarDayInfo, onClick: () -> Unit) {
     val dotColor = when (dayInfo.status) {
-        DayStatus.ALL_PRESENT -> MaterialTheme.colorScheme.primary
-        DayStatus.HAS_ABSENT -> MaterialTheme.colorScheme.error
-        DayStatus.NO_CLASSES -> MaterialTheme.colorScheme.surfaceVariant
+        DayStatus.ALL_PRESENT -> MacSafe
+        DayStatus.HAS_ABSENT -> MacCritical
+        DayStatus.NO_CLASSES -> Color.White.copy(alpha = 0.15f)
     }
 
-    ElevatedCard(
+    Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(GlassCardBg)
+            .border(
+                0.75.dp,
+                Brush.linearGradient(listOf(GlassCardBorderTop, GlassCardBorderMid, GlassCardBorderBottom)),
+                RoundedCornerShape(12.dp)
+            )
+            .clickable { onClick() }
+            .padding(6.dp),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(4.dp),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = "${dayInfo.dayNumber}",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(6.dp)
                     .clip(CircleShape)
                     .background(dotColor)
+                    .shadow(elevation = if (dayInfo.status != DayStatus.NO_CLASSES) 2.dp else 0.dp, shape = CircleShape, spotColor = dotColor)
             )
         }
     }
 }
 
 @Composable
-fun LegendBadge(label: String, color: androidx.compose.ui.graphics.Color) {
+fun LegendBadge(label: String, color: Color) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Text(text = label, style = MaterialTheme.typography.labelMedium)
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label,
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.White.copy(alpha = 0.75f)
+        )
     }
 }

@@ -17,13 +17,17 @@ import com.attendance.app.ui.timetable.TimetableScreen
 import com.attendance.app.ui.settings.SettingsScreen
 import com.attendance.app.ui.calendar.AttendanceCalendarScreen
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+
+private val SpatialEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
 
 @Composable
 fun MainNavigation(initialTarget: String? = null) {
@@ -65,34 +69,52 @@ fun MainNavigation(initialTarget: String? = null) {
         backStack = backStack,
         onBack = { popBack() },
         transitionSpec = {
-            slideInHorizontally(
-                initialOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(300, easing = FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
-            slideOutHorizontally(
-                targetOffsetX = { fullWidth -> -fullWidth / 3 },
-                animationSpec = tween(300, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+            (slideInHorizontally(
+                initialOffsetX = { fullWidth -> (fullWidth * 0.95f).toInt() },
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + scaleIn(
+                initialScale = 0.95f,
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + fadeIn(animationSpec = tween(280, easing = SpatialEasing))) togetherWith
+            (slideOutHorizontally(
+                targetOffsetX = { fullWidth -> -(fullWidth * 0.22f).toInt() },
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + scaleOut(
+                targetScale = 0.95f,
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + fadeOut(animationSpec = tween(240, easing = SpatialEasing)))
         },
         popTransitionSpec = {
-            slideInHorizontally(
-                initialOffsetX = { fullWidth -> -fullWidth / 3 },
-                animationSpec = tween(300, easing = FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
-            slideOutHorizontally(
+            (slideInHorizontally(
+                initialOffsetX = { fullWidth -> -(fullWidth * 0.22f).toInt() },
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + scaleIn(
+                initialScale = 0.95f,
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + fadeIn(animationSpec = tween(280, easing = SpatialEasing))) togetherWith
+            (slideOutHorizontally(
                 targetOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(300, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + scaleOut(
+                targetScale = 0.96f,
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + fadeOut(animationSpec = tween(260, easing = SpatialEasing)))
         },
         predictivePopTransitionSpec = { _ ->
-            slideInHorizontally(
-                initialOffsetX = { fullWidth -> -fullWidth / 3 },
-                animationSpec = tween(300, easing = FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
-            slideOutHorizontally(
+            (slideInHorizontally(
+                initialOffsetX = { fullWidth -> -(fullWidth * 0.22f).toInt() },
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + scaleIn(
+                initialScale = 0.95f,
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + fadeIn(animationSpec = tween(280, easing = SpatialEasing))) togetherWith
+            (slideOutHorizontally(
                 targetOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(300, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + scaleOut(
+                targetScale = 0.96f,
+                animationSpec = tween(320, easing = SpatialEasing)
+            ) + fadeOut(animationSpec = tween(260, easing = SpatialEasing)))
         },
         entryProvider = entryProvider {
             entry<Login> {
