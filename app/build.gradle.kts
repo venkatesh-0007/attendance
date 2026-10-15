@@ -6,8 +6,8 @@ plugins {
   alias(libs.plugins.hilt.android)
 }
 
-val appVersionCode = 106
-val appVersionName = "1.6"
+val appVersionCode = 107
+val appVersionName = "1.7"
 
 android {
     namespace = "com.attendance.app"
@@ -54,7 +54,7 @@ tasks.register<Copy>("copyApkToReleases") {
     from(layout.buildDirectory.dir("outputs/apk/debug"))
     include("*.apk")
     into(releasesDir)
-    rename("(.*)", "Attendance-v1.6-debug.apk")
+    rename("(.*)", "Attendance-v$appVersionName-debug.apk")
 }
 
 tasks.register<Copy>("copyApkToReleasesDefault") {
